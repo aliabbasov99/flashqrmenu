@@ -147,7 +147,7 @@ export default function Home() {
             <i className="fa-regular fa-clock text-[24px] xl:text-[45px]" />
             <span className="flex flex-col gap-0">
               <span className="font-light">{t.everyday}</span>
-              <span className="font-medium">09:00—23:00</span>
+              <span className="font-medium">15:00—02:00</span>
             </span>
           </div>
         </div>
