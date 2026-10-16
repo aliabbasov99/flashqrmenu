@@ -5,6 +5,17 @@ import logo from "../assets/img/logo.svg";
 const API_BASE_URL = "https://api.promar.workers.dev";
 const PASS_KEY = "jaguar_admin_pass";
 
+// Yalnız önizləmə üçün: "15:00" -> "03:00 PM"
+const toPreview12 = (time) => {
+  const t = (time || "").trim();
+  if (!/^\d{1,2}:\d{2}$/.test(t)) return t || "--:--";
+  let [h, m] = t.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
+};
+
 export default function Admin() {
   const [password, setPassword] = useState("");
   const [passInput, setPassInput] = useState(
@@ -15,6 +26,7 @@ export default function Admin() {
 
   const [workHoursStart, setWorkHoursStart] = useState("15:00");
   const [workHoursEnd, setWorkHoursEnd] = useState("02:00");
+  const [timeFormat, setTimeFormat] = useState("24");
   const [newPassword, setNewPassword] = useState("");
 
   const [heroUrl, setHeroUrl] = useState("");
@@ -38,6 +50,7 @@ export default function Admin() {
     }
     setWorkHoursStart(body.settings.workHoursStart || "");
     setWorkHoursEnd(body.settings.workHoursEnd || "");
+    setTimeFormat(body.settings.timeFormat === "12" ? "12" : "24");
     
     setHeroUrl(body.settings.heroImageUrl || "");
     setPreview(body.settings.heroImageUrl || "");
@@ -84,6 +97,7 @@ export default function Admin() {
         body: JSON.stringify({
           workHoursStart,
           workHoursEnd,
+          timeFormat,
           password: newPassword
         })
       });
@@ -260,10 +274,38 @@ export default function Admin() {
             </label>
           </div>
 
+          {/* 24 / 12 saatlıq format */}
+          <div className="flex items-center justify-between bg-[#f9f3e7] rounded-xl px-4 py-3">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">24 saatlıq saat dilimi</span>
+              <span className="text-xs text-black/60">
+                {timeFormat === "24"
+                  ? "Saatlar 24 saatlıq formatda göstərilir"
+                  : "Saatlar 12 saatlıq formatda göstərilir"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTimeFormat(timeFormat === "24" ? "12" : "24")}
+              className={`relative w-14 h-8 rounded-full transition-colors cursor-pointer shrink-0 ${
+                timeFormat === "24" ? "bg-[#3a513e]" : "bg-black/20"
+              }`}
+              aria-label="24 saatlıq format"
+            >
+              <span
+                className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${
+                  timeFormat === "24" ? "left-7" : "left-1"
+                }`}
+              />
+            </button>
+          </div>
+
           <div className="text-sm text-black/60">
             Səhifədə göstəriləcək yazı:{" "}
             <span className="font-medium text-[#3a513e]">
-              {workHoursStart || "--:--"}—{workHoursEnd || "--:--"}
+              {timeFormat === "24"
+                ? `${workHoursStart || "--:--"}—${workHoursEnd || "--:--"}`
+                : `${toPreview12(workHoursStart)}—${toPreview12(workHoursEnd)}`}
             </span>
           </div>
 

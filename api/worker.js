@@ -2,6 +2,7 @@ const DEFAULT_SETTINGS = {
   workHoursStart: "15:00",
   workHoursEnd: "02:00",
   workHoursLabel: "", // boşdursa avtomatik "start—end" yığılır
+  timeFormat: "24", // "24" və ya "12" saatlıq format
   heroImageKey: "", // R2-dəki hero şəklinin açarı (məs: hero/hero.jpg)
   password: "jaguar" // admin panelin giriş parolu (KV-də "admin_pass" ilə dəyişir)
 };
@@ -47,13 +48,29 @@ async function isAuthorized(request, env) {
   return headerPass === stored;
 }
 
-// "15:00—02:00" formatını qaytarır
+// "15:00" -> "03:00 PM" (12 saatlıq format)
+function to12Hour(time) {
+  const t = (time || "").trim();
+  if (!/^\d{1,2}:\d{2}$/.test(t)) return t;
+  let [h, m] = t.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+// "15:00—02:00" formatını qaytarır (timeFormat: "24" və ya "12")
 function buildWorkHours(settings) {
   if (settings.workHoursLabel && settings.workHoursLabel.trim()) {
     return settings.workHoursLabel.trim();
   }
-  const s = (settings.workHoursStart || "").trim();
-  const e = (settings.workHoursEnd || "").trim();
+  const is12 = String(settings.timeFormat) === "12";
+  let s = (settings.workHoursStart || "").trim();
+  let e = (settings.workHoursEnd || "").trim();
+  if (is12) {
+    s = to12Hour(s);
+    e = to12Hour(e);
+  }
   if (!s && !e) return "";
   return `${s}—${e}`;
 }
@@ -144,6 +161,7 @@ export default {
             workHoursStart: settings.workHoursStart,
             workHoursEnd: settings.workHoursEnd,
             workHoursLabel: settings.workHoursLabel,
+            timeFormat: settings.timeFormat,
             workHours: buildWorkHours(settings),
             heroImageKey: settings.heroImageKey,
             heroImageUrl: settings.heroImageKey
@@ -180,6 +198,7 @@ export default {
           workHoursStart: (body.workHoursStart ?? current.workHoursStart) || "",
           workHoursEnd: (body.workHoursEnd ?? current.workHoursEnd) || "",
           workHoursLabel: body.workHoursLabel ?? current.workHoursLabel,
+          timeFormat: body.timeFormat === "12" ? "12" : "24",
           heroImageKey: body.heroImageKey ?? current.heroImageKey
         };
 
