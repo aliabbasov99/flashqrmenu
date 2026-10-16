@@ -5,6 +5,55 @@ import logo from "../assets/img/logo.svg";
 const API_BASE_URL = "https://api.promar.workers.dev";
 const PASS_KEY = "jaguar_admin_pass";
 
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+
+const selectClass =
+  "border border-[#cac2a7]/60 rounded-xl px-3 py-2 bg-white text-[#3a513e] " +
+  "focus:outline-none focus:border-[#3a513e] cursor-pointer";
+
+// Hər zaman 24 saatlıq formatda işləyən saat seçicisi
+function TimeSelect({ label, value, onChange }) {
+  const safe = /^\d{2}:\d{2}$/.test(value || "") ? value : "00:00";
+  const hour = safe.slice(0, 2);
+  const minute = safe.slice(3, 5);
+
+  const pick = (h, m) => onChange(`${h}:${m}`);
+
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <span>{label}</span>
+      <div className="flex items-center gap-1">
+        <select
+          value={hour}
+          onChange={(e) => pick(e.target.value, minute)}
+          className={selectClass}
+        >
+          {HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
+
+        <span className="font-medium">:</span>
+
+        <select
+          value={minute}
+          onChange={(e) => pick(hour, e.target.value)}
+          className={selectClass}
+        >
+          {(MINUTES.includes(minute) ? MINUTES : [minute, ...MINUTES]).map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 // Yalnız önizləmə üçün: "15:00" -> "03:00 PM"
 const toPreview12 = (time) => {
   const t = (time || "").trim();
@@ -253,25 +302,16 @@ export default function Admin() {
           <h2 className="text-xl font-semibold">İş saatları</h2>
 
           <div className="grid grid-cols-2 gap-4">
-            <label className="flex flex-col gap-1 text-sm">
-              <span>Başlama</span>
-              <input
-                type="time"
-                value={workHoursStart}
-                onChange={(e) => setWorkHoursStart(e.target.value)}
-                className="border border-[#cac2a7]/60 rounded-xl px-4 py-2 focus:outline-none focus:border-[#3a513e]"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span>Bitmə</span>
-              <input
-                type="time"
-                value={workHoursEnd}
-                onChange={(e) => setWorkHoursEnd(e.target.value)}
-                className="border border-[#cac2a7]/60 rounded-xl px-4 py-2 focus:outline-none focus:border-[#3a513e]"
-              />
-            </label>
+            <TimeSelect
+              label="Başlama"
+              value={workHoursStart}
+              onChange={setWorkHoursStart}
+            />
+            <TimeSelect
+              label="Bitmə"
+              value={workHoursEnd}
+              onChange={setWorkHoursEnd}
+            />
           </div>
 
           {/* 24 / 12 saatlıq format */}
