@@ -50,6 +50,8 @@ export default function Home() {
   const [activeGroup, setActiveGroup] = useState("ALL");
   const [data, setData] = useState(null);
   const [imagesMap, setImagesMap] = useState({});
+  const [workHours, setWorkHours] = useState("15:00—02:00");
+  const [heroBackground, setHeroBackground] = useState(heroImg);
 
   const [lang, setLang] = useState(() => {
     return localStorage.getItem("appLang") || "az";
@@ -86,6 +88,17 @@ export default function Home() {
         }
       })
       .catch((error) => console.error("Məlumat çəkilərkən xəta:", error));
+
+    // İş saatları və hero şəkli (admin panelindən idarə olunur)
+    fetch(`${API_BASE_URL}/api/settings`)
+      .then((res) => res.json())
+      .then((res) => {
+        if (res && res.settings) {
+          if (res.settings.workHours) setWorkHours(res.settings.workHours);
+          if (res.settings.heroImageUrl) setHeroBackground(res.settings.heroImageUrl);
+        }
+      })
+      .catch((error) => console.error("Tənzimlər çəkilərkən xəta:", error));
   }, []);
 
   const availableGroups = data
@@ -142,12 +155,12 @@ export default function Home() {
 
       {/* Hero Banner */}
       <div className="container flex flex-row justify-between mx-auto py-2 max-w-137.5 px-2 lg:px-0 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl items-center text-[#3a513e]">
-        <div style={{ backgroundImage: `url(${heroImg})` }} className="w-full aspect-video rounded-[25px] bg-cover bg-center relative overflow-hidden p-6 lg:p-8 flex items-end">
+        <div style={{ backgroundImage: `url(${heroBackground})` }} className="w-full aspect-video rounded-[25px] bg-cover bg-center relative overflow-hidden p-6 lg:p-8 flex items-end">
           <div className="bg-white/80 xl:text-[34px] backdrop-blur-md gap-2 px-3 py-2 items-center justify-between rounded-xl text-[#3a513e] flex flex-row">
             <i className="fa-regular fa-clock text-[24px] xl:text-[45px]" />
             <span className="flex flex-col gap-0">
               <span className="font-light">{t.everyday}</span>
-              <span className="font-medium">15:00—02:00</span>
+              <span className="font-medium">{workHours}</span>
             </span>
           </div>
         </div>
