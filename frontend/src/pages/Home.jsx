@@ -1,5 +1,5 @@
 import logo from "../assets/img/logo.svg";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import heroImg from "../assets/img/hero.jpg";
 import divider from "../assets/img/divider.svg";
 import noPhoto from "../assets/img/no_photo.jpeg";
@@ -48,10 +48,17 @@ const API_BASE_URL = "https://api.promar.workers.dev";
 
 export default function Home() {
   const [activeGroup, setActiveGroup] = useState("ALL");
+  const [spyGroup, setSpyGroup] = useState("ALL");
   const [data, setData] = useState(null);
   const [imagesMap, setImagesMap] = useState({});
   const [workHours, setWorkHours] = useState("15:00—02:00");
   const [heroBackground, setHeroBackground] = useState(heroImg);
+
+  const stickyRef = useRef(null);
+  const stripRef = useRef(null);
+  const productsRef = useRef(null);
+  const chipRefs = useRef({});
+  const pendingScrollRef = useRef(false);
 
   const [lang, setLang] = useState(() => {
     return localStorage.getItem("appLang") || "az";
@@ -106,19 +113,143 @@ export default function Home() {
     : [];
 
   // Kateqoriya başlıqlarını süzgəcdən keçirib yalnız həqiqi məhsulları saxlayırıq
-  const filteredProducts = data
-    ? data.filter((product) => {
-        // Kateqoriya başlığı olub-olmadığını yoxlayırıq:
-        const isGroupHeader =
-          product.isGroup === true ||
-          product.isGroup === "true" ||
-          (product.mName === product.mGroup && (!product.mPrice || Number(product.mPrice) === 0));
+  const products = useMemo(() => {
+    if (!data) return [];
+    return data.filter((product) => {
+      const isGroupHeader =
+        product.isGroup === true ||
+        product.isGroup === "true" ||
+        (product.mName === product.mGroup && (!product.mPrice || Number(product.mPrice) === 0));
 
-        if (isGroupHeader) return false;
+      return !isGroupHeader;
+    });
+  }, [data]);
 
-        return activeGroup === "ALL" || product.mGroup === activeGroup;
-      })
-    : [];
+  // "HAMISI" görünüşündə məhsullar kateqoriya üzrə bitişik bloklara yığılır,
+  // seçilmiş kateqoriya olduqda yalnız onun məhsulları qalır
+  const displayedProducts = useMemo(() => {
+    if (activeGroup !== "ALL") {
+      return products.filter((product) => product.mGroup === activeGroup);
+    }
+
+    const order = [];
+    const byGroup = new Map();
+    const loose = [];
+
+    products.forEach((product) => {
+      const group = product.mGroup;
+      if (!group) {
+        loose.push(product);
+        return;
+      }
+      if (!byGroup.has(group)) {
+        byGroup.set(group, []);
+        order.push(group);
+      }
+      byGroup.get(group).push(product);
+    });
+
+    return [...order.flatMap((group) => byGroup.get(group)), ...loose];
+  }, [products, activeGroup]);
+
+  // Scroll spy yalnız "HAMISI" rejimində işləyir, filtr rejimində seçilmiş kateqoriya aktivdir
+  const highlightedGroup = activeGroup !== "ALL" ? activeGroup : spyGroup;
+
+  // Scroll edilən zaman görünən kateqoriyanı müəyyən edirik
+  useEffect(() => {
+    let ticking = false;
+
+    const update = () => {
+      ticking = false;
+      const container = productsRef.current;
+      if (!container) return;
+
+      const refLine =
+        (stickyRef.current ? stickyRef.current.getBoundingClientRect().bottom : 0) + 8;
+
+      // Məhsullar hələ görünməyibsə (hero bölməsi) "HAMISI" aktivdir
+      if (container.getBoundingClientRect().top > refLine) {
+        setSpyGroup("ALL");
+        return;
+      }
+
+      const cards = container.querySelectorAll("[data-group]");
+      let next = "";
+
+      // Sətirin üstündən keçən ilk görünən məhsulun kateqoriyası aktiv sayılır
+      for (const card of cards) {
+        const group = card.dataset.group;
+        if (!group) continue;
+        if (card.getBoundingClientRect().bottom > refLine) {
+          next = group;
+          break;
+        }
+      }
+
+      // Siyahının sonuna qədər sürüşdürülübsə
+      if (!next) {
+        for (let i = cards.length - 1; i >= 0; i--) {
+          if (cards[i].dataset.group) {
+            next = cards[i].dataset.group;
+            break;
+          }
+        }
+      }
+
+      if (next) setSpyGroup(next);
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [displayedProducts]);
+
+  // Aktiv kateqoriya dəyişəndə onun düyməsi sürüşdürmə zolağında görünən yerə gəlir
+  useEffect(() => {
+    const strip = stripRef.current;
+    const chip = chipRefs.current[highlightedGroup];
+    if (!strip || !chip) return;
+
+    const target = chip.offsetLeft - strip.clientWidth / 2 + chip.offsetWidth / 2;
+    strip.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+  }, [highlightedGroup, availableGroups.length]);
+
+  const scrollToProducts = () => {
+    const el = productsRef.current;
+    if (!el) return;
+
+    const offset = (stickyRef.current ? stickyRef.current.offsetHeight : 0) + 8;
+    const top = window.scrollY + el.getBoundingClientRect().top - offset;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  };
+
+  // Kateqoriyaya klik olunduqda məhsullar sırası yenilənir, mövqe ona uyğunlaşır
+  useEffect(() => {
+    if (!pendingScrollRef.current) return;
+    pendingScrollRef.current = false;
+    scrollToProducts();
+  }, [activeGroup, displayedProducts]);
+
+  const handleGroupClick = (group) => {
+    if (group === activeGroup) {
+      if (group !== "ALL") scrollToProducts();
+      return;
+    }
+
+    setActiveGroup(group);
+    if (group !== "ALL") pendingScrollRef.current = true;
+  };
 
   return (
     <>
@@ -167,15 +298,18 @@ export default function Home() {
       </div>
 
       {/* Kateqoriya Düymələri Slider/Tab */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-2 shadow-xs transition-all">
+      <div ref={stickyRef} className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-2 shadow-xs transition-all">
         <div className="container mx-auto px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl">
-          <div className="flex items-center justify-start overflow-x-auto gap-2 whitespace-nowrap no-scrollbar">
+          <div ref={stripRef} className="flex items-center justify-start overflow-x-auto gap-2 whitespace-nowrap no-scrollbar">
             {availableGroups.map((group) => (
               <button
                 key={group}
-                onClick={() => setActiveGroup(group)}
+                ref={(el) => {
+                  chipRefs.current[group] = el;
+                }}
+                onClick={() => handleGroupClick(group)}
                 className={`flex items-center cursor-pointer gap-2 px-4 py-2 rounded-full text-sm shrink-0 transition-all ${
-                  activeGroup === group
+                  highlightedGroup === group
                     ? "bg-[#3a513e] text-white shadow-sm"
                     : "bg-[#f9f3e7] text-[#3a513e] border border-[#cac2a7]/40 hover:bg-[#f5ebd7]"
                 }`}
@@ -205,13 +339,13 @@ export default function Home() {
       </div>
 
       {/* Məhsullar Siyahısı */}
-      <div className="container mx-auto py-4 px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[#3a513e]">
+      <div ref={productsRef} className="container mx-auto py-4 px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[#3a513e]">
         <div className="grid gap-2 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 items-stretch">
-          {filteredProducts.map((product) => {
+          {displayedProducts.map((product) => {
             const imgSrc = imagesMap[product.mID] || noPhoto;
 
             return (
-              <div key={product.mID} className="h-full flex flex-col">
+              <div key={product.mID} data-group={product.mGroup || ""} className="h-full flex flex-col">
                 <div className="bg-white rounded-[25px] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full">
                   
                   {/* Şəkil konteyneri */}
