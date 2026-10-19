@@ -1,226 +1,126 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import logo from "../assets/img/logo.svg";
+import { api, getAuth, setAuth, clearAuth, AUTH_SUPER } from "../lib/api";
 
-const API_BASE_URL = "https://api.promar.workers.dev";
-const PASS_KEY = "jaguar_admin_pass";
-
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
-
-const selectClass =
+const inputClass =
   "border border-[#cac2a7]/60 rounded-xl px-3 py-2 bg-white text-[#3a513e] " +
-  "focus:outline-none focus:border-[#3a513e] cursor-pointer";
+  "focus:outline-none focus:border-[#3a513e] w-full";
 
-// Hər zaman 24 saatlıq formatda işləyən saat seçicisi
-function TimeSelect({ label, value, onChange }) {
-  const safe = /^\d{2}:\d{2}$/.test(value || "") ? value : "00:00";
-  const hour = safe.slice(0, 2);
-  const minute = safe.slice(3, 5);
+const labelClass = "flex flex-col gap-1 text-sm";
 
-  const pick = (h, m) => onChange(`${h}:${m}`);
-
-  return (
-    <div className="flex flex-col gap-1 text-sm">
-      <span>{label}</span>
-      <div className="flex items-center gap-1">
-        <select
-          value={hour}
-          onChange={(e) => pick(e.target.value, minute)}
-          className={selectClass}
-        >
-          {HOURS.map((h) => (
-            <option key={h} value={h}>
-              {h}
-            </option>
-          ))}
-        </select>
-
-        <span className="font-medium">:</span>
-
-        <select
-          value={minute}
-          onChange={(e) => pick(hour, e.target.value)}
-          className={selectClass}
-        >
-          {(MINUTES.includes(minute) ? MINUTES : [minute, ...MINUTES]).map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
+function slugify(text) {
+  const map = { ə: "e", ü: "u", ö: "o", ğ: "g", ş: "s", ç: "c", ı: "i", İ: "i" };
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[əüöğşıçİ]/g, (c) => map[c] || c)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-// Yalnız önizləmə üçün: "15:00" -> "03:00 PM"
-const toPreview12 = (time) => {
-  const t = (time || "").trim();
-  if (!/^\d{1,2}:\d{2}$/.test(t)) return t || "--:--";
-  let [h, m] = t.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  h = h % 12;
-  if (h === 0) h = 12;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
-};
-
 export default function Admin() {
+  const [session, setSession] = useState(() => getAuth(AUTH_SUPER));
+  const [loading, setLoading] = useState(() => !!getAuth(AUTH_SUPER));
+
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [passInput, setPassInput] = useState(
-    () => localStorage.getItem(PASS_KEY) || ""
-  );
-  const [authed, setAuthed] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  const [workHoursStart, setWorkHoursStart] = useState("15:00");
-  const [workHoursEnd, setWorkHoursEnd] = useState("02:00");
-  const [timeFormat, setTimeFormat] = useState("24");
-  const [newPassword, setNewPassword] = useState("");
+  const [restaurants, setRestaurants] = useState([]);
+  const [expanded, setExpanded] = useState(null);
+  const [draft, setDraft] = useState(null);
 
-  const [heroUrl, setHeroUrl] = useState("");
-  const [preview, setPreview] = useState("");
-  const fileRef = useRef(null);
-
+  const [form, setForm] = useState({ name: "", slug: "", username: "", password: "" });
   const [status, setStatus] = useState({ type: "", text: "" });
 
-  const authHeaders = (pass = password) => ({
-    "Content-Type": "application/json",
-    "x-admin-pass": pass
-  });
+  const token = session?.token;
 
-  const loadSettings = async (pass) => {
-    const res = await fetch(`${API_BASE_URL}/api/admin-settings`, {
-      headers: { "x-admin-pass": pass }
-    });
-    const body = await res.json();
-    if (!res.ok || body.msg !== "success") {
-      throw new Error(body.msg || "Xəta baş verdi");
-    }
-    setWorkHoursStart(body.settings.workHoursStart || "");
-    setWorkHoursEnd(body.settings.workHoursEnd || "");
-    setTimeFormat(body.settings.timeFormat === "12" ? "12" : "24");
-    
-    setHeroUrl(body.settings.heroImageUrl || "");
-    setPreview(body.settings.heroImageUrl || "");
+  const loadRestaurants = async (tok = token) => {
+    const data = await api("/super/restaurants", { token: tok });
+    setRestaurants(data.restaurants || []);
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem(PASS_KEY);
-    if (!saved) {
-      setLoading(false);
-      return;
-    }
-    loadSettings(saved)
-      .then(() => {
-        setPassword(saved);
-        setAuthed(true);
-      })
+    if (!session) return;
+    api("/super/restaurants", { token })
+      .then((data) => setRestaurants(data.restaurants || []))
       .catch(() => {
-        localStorage.removeItem(PASS_KEY);
-        setPassInput("");
+        clearAuth(AUTH_SUPER);
+        setSession(null);
       })
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setStatus({ type: "", text: "" });
     try {
-      await loadSettings(passInput);
-      localStorage.setItem(PASS_KEY, passInput);
-      setPassword(passInput);
-      setAuthed(true);
+      const data = await api("/auth/login", {
+        method: "POST",
+        body: { username, password }
+      });
+      if (data.role !== "super") {
+        throw new Error("Bu giriş restoran paneli üçündür. /panel səhifəsindən daxil olun.");
+      }
+      const next = { token: data.token, role: data.role };
+      setAuth(next, AUTH_SUPER);
+      setSession(next);
+      setPassword("");
+      await loadRestaurants(data.token);
     } catch (err) {
-      setStatus({ type: "error", text: err.message || "Parol yanlışdır" });
+      setStatus({ type: "error", text: err.message });
     }
   };
 
-  const handleSaveHours = async (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
     setStatus({ type: "", text: "" });
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin-settings`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          workHoursStart,
-          workHoursEnd,
-          timeFormat,
-          password: newPassword
-        })
-      });
-      const body = await res.json();
-      if (!res.ok || body.msg !== "success") throw new Error(body.msg);
-      setNewPassword("");
-      setStatus({ type: "success", text: "İş saatları saxlanıldı ✅" });
-      if (newPassword) {
-        localStorage.setItem(PASS_KEY, newPassword);
-        setPassword(newPassword);
-      }
+      await api("/super/restaurants", { method: "POST", token, body: form });
+      setForm({ name: "", slug: "", username: "", password: "" });
+      setStatus({ type: "success", text: "Restoran yaradıldı ✅" });
+      await loadRestaurants();
     } catch (err) {
-      setStatus({ type: "error", text: err.message || "Xəta baş verdi" });
+      setStatus({ type: "error", text: err.message });
     }
   };
 
-  const handleHeroUpload = async (e) => {
-    e.preventDefault();
-    const file = fileRef.current?.files?.[0];
-    if (!file) {
-      setStatus({ type: "error", text: "Əvvəlcə şəkil seçin" });
-      return;
-    }
-    setStatus({ type: "", text: "Yüklənir..." });
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("pass", password);
+  const openEdit = (r) => {
+    setExpanded(r._id);
+    setDraft({ name: r.name, slug: r.slug, username: r.username, password: "", active: r.active });
+    setStatus({ type: "", text: "" });
+  };
 
-      const res = await fetch(`${API_BASE_URL}/api/hero-img`, {
-        method: "POST",
-        headers: { "x-admin-pass": password },
-        body: formData
-      });
-      const body = await res.json();
-      if (!res.ok || body.msg !== "success") throw new Error(body.msg);
-      setHeroUrl(body.settings.heroImageUrl);
-      setPreview(body.settings.heroImageUrl);
-      setStatus({ type: "success", text: "Şəkil yükləndi ✅" });
+  const handleSave = async (id) => {
+    setStatus({ type: "", text: "" });
+    try {
+      const body = { ...draft };
+      if (!body.password) delete body.password;
+      await api(`/super/restaurants/${id}`, { method: "PUT", token, body });
+      setStatus({ type: "success", text: "Yadda saxlanıldı ✅" });
+      setExpanded(null);
+      setDraft(null);
+      await loadRestaurants();
     } catch (err) {
-      setStatus({ type: "error", text: err.message || "Yükləmə xətası" });
+      setStatus({ type: "error", text: err.message });
     }
   };
 
-  const handleHeroRemove = async () => {
-    setStatus({ type: "", text: "Silinir..." });
+  const handleDelete = async (r) => {
+    if (!confirm(`"${r.name}" restoranı və bütün menyusu silinsin?`)) return;
+    setStatus({ type: "", text: "" });
     try {
-      const formData = new FormData();
-      formData.append("remove", "true");
-      formData.append("pass", password);
-
-      const res = await fetch(`${API_BASE_URL}/api/hero-img`, {
-        method: "POST",
-        headers: { "x-admin-pass": password },
-        body: formData
-      });
-      const body = await res.json();
-      if (!res.ok || body.msg !== "success") throw new Error(body.msg);
-      setHeroUrl("");
-      setPreview("");
-      if (fileRef.current) fileRef.current.value = "";
-      setStatus({ type: "success", text: "Şəkil silindi ✅" });
+      await api(`/super/restaurants/${r._id}`, { method: "DELETE", token });
+      setStatus({ type: "success", text: "Restoran silindi ✅" });
+      await loadRestaurants();
     } catch (err) {
-      setStatus({ type: "error", text: err.message || "Xəta baş verdi" });
+      setStatus({ type: "error", text: err.message });
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(PASS_KEY);
-    setAuthed(false);
-    setPassword("");
-    setPassInput("");
-    setPreview("");
-    setHeroUrl("");
+    clearAuth(AUTH_SUPER);
+    setSession(null);
+    setRestaurants([]);
   };
 
   if (loading) {
@@ -231,21 +131,32 @@ export default function Admin() {
     );
   }
 
-  if (!authed) {
+  if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4 text-[#3a513e] bg-[#f9f3e7]">
-        <img src={logo} alt="Jaguar Lounge" className="max-h-16" />
+        <div className="flex flex-col items-center gap-1 text-center">
+          <span className="text-3xl font-extrabold">QR Menyu</span>
+          <span className="text-sm text-black/60">Super Admin girişi</span>
+        </div>
         <form
           onSubmit={handleLogin}
           className="w-full max-w-sm bg-white rounded-[25px] shadow-sm p-6 flex flex-col gap-4"
         >
-          <h1 className="text-xl font-extrabold">Admin girişi</h1>
+          <h1 className="text-xl font-extrabold">Super Admin girişi</h1>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Login"
+            className={inputClass}
+            autoComplete="username"
+          />
           <input
             type="password"
-            value={passInput}
-            onChange={(e) => setPassInput(e.target.value)}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="Parol"
-            className="border border-[#cac2a7]/60 rounded-xl px-4 py-2 focus:outline-none focus:border-[#3a513e]"
+            className={inputClass}
+            autoComplete="current-password"
           />
           <button
             type="submit"
@@ -254,18 +165,15 @@ export default function Admin() {
             Daxil ol
           </button>
           {status.text && (
-            <p
-              className={`text-sm ${
-                status.type === "error" ? "text-red-600" : "text-[#3a513e]"
-              }`}
-            >
+            <p className={`text-sm ${status.type === "error" ? "text-red-600" : "text-[#3a513e]"}`}>
               {status.text}
             </p>
           )}
         </form>
-        <Link to="/" className="text-sm underline">
-          Ana səhifə
-        </Link>
+        <div className="flex gap-4 text-sm">
+          <Link to="/" className="underline">Ana səhifə</Link>
+          <Link to="/panel" className="underline">Restoran paneli</Link>
+        </div>
       </div>
     );
   }
@@ -274,16 +182,13 @@ export default function Admin() {
     <div className="min-h-screen bg-[#f9f3e7] text-[#3a513e] pb-16">
       <div className="container mx-auto py-4 px-4 max-w-3xl flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="Jaguar Lounge" className="max-h-12" />
-          <span className="text-lg font-extrabold">Admin Panel</span>
+          <div className="w-10 h-10 rounded-full bg-[#3a513e] text-white flex items-center justify-center font-bold shrink-0">
+            A
+          </div>
+          <span className="text-lg font-extrabold">Super Admin</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="text-sm underline cursor-pointer"
-          >
-            Səhifə
-          </Link>
+          <Link to="/" className="text-sm underline cursor-pointer">Səhifə</Link>
           <button
             onClick={handleLogout}
             className="bg-[#3a513e] text-white text-sm rounded-full px-4 py-1.5 cursor-pointer"
@@ -294,118 +199,183 @@ export default function Admin() {
       </div>
 
       <div className="container mx-auto px-4 max-w-3xl flex flex-col gap-6">
-        {/* İş saatları */}
+        {/* Restoran əlavə et */}
         <form
-          onSubmit={handleSaveHours}
+          onSubmit={handleCreate}
           className="bg-white rounded-[25px] shadow-sm p-6 flex flex-col gap-4"
         >
-          <h2 className="text-xl font-semibold">İş saatları</h2>
-
-          <div className="grid grid-cols-2 gap-4">
-            <TimeSelect
-              label="Başlama"
-              value={workHoursStart}
-              onChange={setWorkHoursStart}
-            />
-            <TimeSelect
-              label="Bitmə"
-              value={workHoursEnd}
-              onChange={setWorkHoursEnd}
-            />
-          </div>
-
-          {/* 24 / 12 saatlıq format */}
-          <div className="flex items-center justify-between bg-[#f9f3e7] rounded-xl px-4 py-3">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">24 saatlıq saat dilimi</span>
-              <span className="text-xs text-black/60">
-                {timeFormat === "24"
-                  ? "Saatlar 24 saatlıq formatda göstərilir"
-                  : "Saatlar 12 saatlıq formatda göstərilir"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setTimeFormat(timeFormat === "24" ? "12" : "24")}
-              className={`relative w-14 h-8 rounded-full transition-colors cursor-pointer shrink-0 ${
-                timeFormat === "24" ? "bg-[#3a513e]" : "bg-black/20"
-              }`}
-              aria-label="24 saatlıq format"
-            >
-              <span
-                className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${
-                  timeFormat === "24" ? "left-7" : "left-1"
-                }`}
+          <h2 className="text-xl font-semibold">Yeni restoran</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <label className={labelClass}>
+              <span>Restoran adı *</span>
+              <input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    name: e.target.value,
+                    slug: f.slug || slugify(e.target.value)
+                  }))
+                }
+                placeholder="Məs: Jaguar Lounge"
+                className={inputClass}
+                required
               />
-            </button>
+            </label>
+            <label className={labelClass}>
+              <span>URL ünvanı (slug)</span>
+              <input
+                value={form.slug}
+                onChange={(e) => setForm((f) => ({ ...f, slug: slugify(e.target.value) }))}
+                placeholder="jaguar-lounge"
+                className={inputClass}
+              />
+            </label>
+            <label className={labelClass}>
+              <span>Panel girişi *</span>
+              <input
+                value={form.username}
+                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value.toLowerCase() }))}
+                placeholder="jaguar"
+                className={inputClass}
+                required
+              />
+            </label>
+            <label className={labelClass}>
+              <span>Panel parolu *</span>
+              <input
+                type="text"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="••••••"
+                className={inputClass}
+                required
+              />
+            </label>
           </div>
-
-          <div className="text-sm text-black/60">
-            Səhifədə göstəriləcək yazı:{" "}
-            <span className="font-medium text-[#3a513e]">
-              {timeFormat === "24"
-                ? `${workHoursStart || "--:--"}—${workHoursEnd || "--:--"}`
-                : `${toPreview12(workHoursStart)}—${toPreview12(workHoursEnd)}`}
-            </span>
-          </div>
-
-          <label className="flex flex-col gap-1 text-sm">
-            <span>Yeni admin parolu (boşdursa dəyişmə)</span>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="••••••"
-              className="border border-[#cac2a7]/60 rounded-xl px-4 py-2 focus:outline-none focus:border-[#3a513e]"
-            />
-          </label>
-
           <button
             type="submit"
             className="bg-[#3a513e] text-white rounded-xl py-2 font-medium cursor-pointer self-start px-6"
           >
-            Yadda saxla
+            Əlavə et
           </button>
         </form>
 
-        {/* Hero şəkli */}
+        {/* Restoranlar */}
         <div className="bg-white rounded-[25px] shadow-sm p-6 flex flex-col gap-4">
-          <h2 className="text-xl font-semibold">Hero şəkli</h2>
+          <h2 className="text-xl font-semibold">Restoranlar ({restaurants.length})</h2>
 
-          <div
-            className="w-full aspect-video rounded-[25px] bg-cover bg-center bg-[#f0ece1]"
-            style={preview ? { backgroundImage: `url(${preview})` } : undefined}
-          >
-            {!preview && (
-              <div className="w-full h-full flex items-center justify-center text-sm text-black/40">
-                Şəkil yoxdur
+          {restaurants.length === 0 && (
+            <p className="text-sm text-black/60">Hələlik restoran yoxdur.</p>
+          )}
+
+          {restaurants.map((r) => (
+            <div key={r._id} className="border border-[#cac2a7]/40 rounded-[20px] p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex flex-col">
+                  <span className="font-semibold">{r.name}</span>
+                  <span className="text-xs text-black/50">
+                    /r/{r.slug} · giriş: {r.username}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs rounded-full px-2 py-1 ${
+                      r.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {r.active ? "Aktiv" : "Deaktiv"}
+                  </span>
+                  <Link
+                    to={`/r/${r.slug}`}
+                    className="text-sm underline cursor-pointer"
+                    target="_blank"
+                  >
+                    Menyu
+                  </Link>
+                  <button
+                    onClick={() => (expanded === r._id ? setExpanded(null) : openEdit(r))}
+                    className="text-sm bg-[#f9f3e7] border border-[#cac2a7]/50 rounded-full px-3 py-1 cursor-pointer"
+                  >
+                    {expanded === r._id ? "Bağla" : "Redaktə"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(r)}
+                    className="text-sm bg-red-600/90 text-white rounded-full px-3 py-1 cursor-pointer"
+                  >
+                    Sil
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="text-sm"
-          />
+              {expanded === r._id && draft && (
+                <div className="grid sm:grid-cols-2 gap-4 bg-[#f9f3e7] rounded-[16px] p-4">
+                  <label className={labelClass}>
+                    <span>Ad</span>
+                    <input
+                      value={draft.name}
+                      onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    <span>URL (slug)</span>
+                    <input
+                      value={draft.slug}
+                      onChange={(e) => setDraft((d) => ({ ...d, slug: slugify(e.target.value) }))}
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    <span>Panel girişi</span>
+                    <input
+                      value={draft.username}
+                      onChange={(e) =>
+                        setDraft((d) => ({ ...d, username: e.target.value.toLowerCase() }))
+                      }
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    <span>Yeni parol (boşdursa dəyişmə)</span>
+                    <input
+                      type="text"
+                      value={draft.password}
+                      onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
+                      className={inputClass}
+                      placeholder="••••••"
+                    />
+                  </label>
 
-          <div className="flex gap-3">
-            <button
-              onClick={handleHeroUpload}
-              className="bg-[#3a513e] text-white rounded-xl py-2 px-6 font-medium cursor-pointer"
-            >
-              Yüklə
-            </button>
-            {heroUrl && (
-              <button
-                onClick={handleHeroRemove}
-                className="bg-red-600/90 text-white rounded-xl py-2 px-6 font-medium cursor-pointer"
-              >
-                Sil
-              </button>
-            )}
-          </div>
+                  <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 sm:col-span-2">
+                    <span className="text-sm font-medium">
+                      {draft.active ? "Restoran aktivdir (menyu açıqdır)" : "Restoran deaktivdir"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDraft((d) => ({ ...d, active: !d.active }))}
+                      className={`relative w-14 h-8 rounded-full transition-colors cursor-pointer shrink-0 ${
+                        draft.active ? "bg-[#3a513e]" : "bg-black/20"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${
+                          draft.active ? "left-7" : "left-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => handleSave(r._id)}
+                    className="bg-[#3a513e] text-white rounded-xl py-2 font-medium cursor-pointer sm:col-span-2"
+                  >
+                    Yadda saxla
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         {status.text && (

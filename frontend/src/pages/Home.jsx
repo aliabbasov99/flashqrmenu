@@ -1,6 +1,6 @@
-import logo from "../assets/img/logo.svg";
 import { useEffect, useMemo, useRef, useState } from "react";
-import heroImg from "../assets/img/hero.jpg";
+import { Link, useParams } from "react-router-dom";
+import defaultHero from "../assets/img/hero.jpg";
 import divider from "../assets/img/divider.svg";
 import noPhoto from "../assets/img/no_photo.jpeg";
 
@@ -20,12 +20,6 @@ const translations = {
     seasonal: "Seasonal",
     everyday: "Every day",
     selectedForYou: "Selected for you",
-    groups: {
-      MENYU: "Popular",
-      QUTABLAR: "Qutabs",
-      "SOYUQ İÇKİLƏR": "Cold Drinks",
-      SERVİSLƏR: "Services"
-    }
   },
   ru: {
     all: "Все",
@@ -34,25 +28,20 @@ const translations = {
     seasonal: "Сезонный",
     everyday: "Каждый день",
     selectedForYou: "Выбрано для вас",
-    groups: {
-      MENYU: "Популярное",
-      QUTABLAR: "Кутабы",
-      "SOYUQ İÇKİLƏR": "Холодные напитки",
-      SERVİSLƏR: "Услуги"
-    }
   }
 };
 
-const R2_PUBLIC_URL = "https://pub-28aba3035f5e4b4b9d2246f55c816246.r2.dev";
-const API_BASE_URL = "https://api.promar.workers.dev";
-
 export default function Home() {
+  const { slug } = useParams();
   const [activeGroup, setActiveGroup] = useState("ALL");
   const [spyGroup, setSpyGroup] = useState("ALL");
-  const [data, setData] = useState(null);
-  const [imagesMap, setImagesMap] = useState({});
-  const [workHours, setWorkHours] = useState("15:00—02:00");
-  const [heroBackground, setHeroBackground] = useState(heroImg);
+  const [categories, setCategories] = useState([]);
+  const [items, setItems] = useState([]);
+  const [restaurant, setRestaurant] = useState(null);
+  const [error, setError] = useState("");
+  const [workHours, setWorkHours] = useState("");
+  const [heroBackground, setHeroBackground] = useState(defaultHero);
+  const [notFound, setNotFound] = useState(false);
 
   const stickyRef = useRef(null);
   const stripRef = useRef(null);
@@ -74,86 +63,52 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Məlumatları və şəkillərin siyahısını paralel olaraq çəkirik
-    Promise.all([
-      fetch(`${API_BASE_URL}/api/data`).then((res) => res.json()),
-      fetch(`${API_BASE_URL}/api/get-img`).then((res) => res.json())
-    ])
-      .then(([menuData, imgData]) => {
-        setData(menuData);
-
-        // API-dən gələn faylları mID -> URL xəritəsinə çeviririk
-        if (imgData && imgData.files) {
-          const map = {};
-          imgData.files.forEach((fileKey) => {
-            const fileName = fileKey.replace("images/", "");
-            const lastDotIndex = fileName.lastIndexOf(".");
-            const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
-
-            map[baseName] = `${R2_PUBLIC_URL}/${fileKey}`;
-          });
-          setImagesMap(map);
-        }
+    fetch(`/api/restaurants/${encodeURIComponent(slug)}/menu`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || data.msg !== "success") throw new Error("not found");
+        setRestaurant(data.restaurant);
+        setCategories(data.categories || []);
+        setItems(data.products || []);
+        if (data.restaurant?.workHours) setWorkHours(data.restaurant.workHours);
+        if (data.restaurant?.heroImage) setHeroBackground(data.restaurant.heroImage);
+        else setHeroBackground(defaultHero);
       })
-      .catch((error) => console.error("Məlumat çəkilərkən xəta:", error));
+      .catch((e) => {
+        if (e.message === "not found") setNotFound(true);
+        else setError("Menyu yüklənmədi, yenidən yoxlayın");
+      });
+  }, [slug]);
 
-    // İş saatları və hero şəkli (admin panelindən idarə olunur)
-    fetch(`${API_BASE_URL}/api/settings`)
-      .then((res) => res.json())
-      .then((res) => {
-        if (res && res.settings) {
-          if (res.settings.workHours) setWorkHours(res.settings.workHours);
-          if (res.settings.heroImageUrl) setHeroBackground(res.settings.heroImageUrl);
-        }
-      })
-      .catch((error) => console.error("Tənzimlər çəkilərkən xəta:", error));
-  }, []);
-
-  const availableGroups = useMemo(
-    () =>
-      data ? ["ALL", ...Array.from(new Set(data.map((item) => item.mGroup))).filter(Boolean)] : [],
-    [data]
-  );
+  const availableGroups = useMemo(() => {
+    const present = new Set(items.map((p) => p.categoryName).filter(Boolean));
+    return ["ALL", ...categories.map((c) => c.name).filter((n) => present.has(n))];
+  }, [items, categories]);
 
   // Kateqoriya başlıqlarını süzgəcdən keçirib yalnız həqiqi məhsulları saxlayırıq
-  const products = useMemo(() => {
-    if (!data) return [];
-    return data.filter((product) => {
-      const isGroupHeader =
-        product.isGroup === true ||
-        product.isGroup === "true" ||
-        (product.mName === product.mGroup && (!product.mPrice || Number(product.mPrice) === 0));
-
-      return !isGroupHeader;
-    });
-  }, [data]);
+  const products = useMemo(() => items.filter((p) => p.name), [items]);
 
   // "HAMISI" görünüşündə məhsullar kateqoriya üzrə bitişik bloklara yığılır,
   // seçilmiş kateqoriya olduqda yalnız onun məhsulları qalır
   const displayedProducts = useMemo(() => {
     if (activeGroup !== "ALL") {
-      return products.filter((product) => product.mGroup === activeGroup);
+      return products.filter((p) => p.categoryName === activeGroup);
     }
 
-    const order = [];
     const byGroup = new Map();
     const loose = [];
-
-    products.forEach((product) => {
-      const group = product.mGroup;
-      if (!group) {
-        loose.push(product);
+    products.forEach((p) => {
+      if (!p.categoryName) {
+        loose.push(p);
         return;
       }
-      if (!byGroup.has(group)) {
-        byGroup.set(group, []);
-        order.push(group);
-      }
-      byGroup.get(group).push(product);
+      if (!byGroup.has(p.categoryName)) byGroup.set(p.categoryName, []);
+      byGroup.get(p.categoryName).push(p);
     });
 
-    return [...order.flatMap((group) => byGroup.get(group)), ...loose];
-  }, [products, activeGroup]);
+    const orderedGroups = categories.map((c) => c.name).filter((n) => byGroup.has(n));
+    return [...orderedGroups.flatMap((g) => byGroup.get(g)), ...loose];
+  }, [products, activeGroup, categories]);
 
   // Scroll spy yalnız "HAMISI" rejimində işləyir, filtr rejimində seçilmiş kateqoriya aktivdir
   const highlightedGroup = activeGroup !== "ALL" ? activeGroup : spyGroup;
@@ -170,7 +125,6 @@ export default function Home() {
       const baseLine =
         (stickyRef.current ? stickyRef.current.getBoundingClientRect().bottom : 0) + 8;
 
-      // Məhsullar hələ görünməyibsə (hero bölməsi) "HAMISI" aktivdir
       if (container.getBoundingClientRect().top > baseLine) {
         setSpyGroup("ALL");
         return;
@@ -184,7 +138,6 @@ export default function Home() {
         document.documentElement.scrollHeight - viewportH - window.scrollY;
 
       if (remaining <= 2) {
-        // Tam sona çatılıb: yalnız ən son kateqoriya aktivdir
         for (let i = cards.length - 1; i >= 0; i--) {
           if (cards[i].dataset.group) {
             next = cards[i].dataset.group;
@@ -192,14 +145,10 @@ export default function Home() {
           }
         }
       } else {
-        // Sonuna yaxın istinad xətti yavaş-yavaş ekranın altına enir.
-        // Beləcə qısa son bloklar (məsələn 4 salat) də növbə ilə aktiv olur,
-        // tam sona çatanda isə ən son kateqoriya qalır, əlavə boşluq lazım deyil.
         const zone = Math.max(1, viewportH - baseLine);
         const progress = Math.min(1, Math.max(0, 1 - remaining / zone));
         const refLine = baseLine + (viewportH - baseLine) * progress;
 
-        // Sətirin üstündən keçən ilk görünən məhsulun kateqoriyası aktiv sayılır
         for (const card of cards) {
           const group = card.dataset.group;
           if (!group) continue;
@@ -246,8 +195,6 @@ export default function Home() {
 
     const target = Math.max(0, chip.offsetLeft - strip.clientWidth / 2 + chip.offsetWidth / 2);
     const now = performance.now();
-    // Sürətli scroll zamanı ardıcıl animasiyalar bir-birini kəsib gecikmə yaradır,
-    // ona görə qısa aralıqla dəyişiklikdə dəqiq mövqeyə ani keçirik
     const behavior = now - lastChipScrollRef.current < 220 ? "auto" : "smooth";
     lastChipScrollRef.current = now;
 
@@ -285,11 +232,14 @@ export default function Home() {
     () => (
       <div className="grid gap-2 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 items-stretch">
         {displayedProducts.map((product) => {
-          const imgSrc = imagesMap[product.mID] || noPhoto;
+          const imgSrc = product.image || noPhoto;
 
           return (
-            <div key={product.mID} data-group={product.mGroup || ""} className="h-full flex flex-col">
-              <div className="bg-white rounded-[25px] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full">
+            <div key={product._id} data-group={product.categoryName || ""} className="h-full flex flex-col">
+              <Link
+                to={`/r/${slug}/m/${product._id}`}
+                className="bg-white rounded-[25px] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full"
+              >
                 {/* Şəkil konteyneri */}
                 <div className="w-full aspect-[4/3] relative overflow-hidden shrink-0 bg-gray-50 border-b border-[#3a513e]">
                   <img
@@ -298,7 +248,7 @@ export default function Home() {
                       e.target.onerror = null;
                       e.target.src = noPhoto;
                     }}
-                    alt={product.mName}
+                    alt={product.name}
                     className="absolute inset-0 w-full h-full object-fill"
                   />
                 </div>
@@ -306,33 +256,48 @@ export default function Home() {
                 <div className="px-4 py-3 flex flex-col justify-between flex-1">
                   <div>
                     <h3 className="text-sm sm:text-base font-[#3a513e] font-semibold leading-tight line-clamp-2">
-                      {product.mName}
+                      {product.name}
                     </h3>
                     <p className="text-black/60 text-xs sm:text-sm line-clamp-1 mt-1">
-                      {product.mSubName}
+                      {product.subName}
                     </p>
                   </div>
                   <div className="text-[18px] sm:text-[20px] md:text-[22px] font-medium text-[#3a513e] mt-auto pt-2">
-                    {product.mPrice} <span>₼</span>
+                    {product.price} <span>₼</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
           );
         })}
       </div>
     ),
-    [displayedProducts, imagesMap]
+    [displayedProducts, slug]
   );
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#fbf7ee] text-[#3a513e] px-4">
+        <p className="text-lg font-semibold">Restoran tapılmadı</p>
+        <Link to="/" className="underline text-sm">
+          Restoranlar siyahısı
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <>
       {/* Header / Logo / Language Selection */}
       <div className="container flex flex-row justify-between mx-auto py-4 max-w-[550px] px-2 lg:px-0 md:max-w-[720px] lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl items-center text-[#3a513e]">
         <div className="flex flex-row items-center gap-3">
-          <img src={logo} className="max-h-10 sm:max-h-12 md:max-h-16 lg:max-h-20 shrink" alt="Jaguar Lounge Logo" />
+          {restaurant?.logo && (
+            <img src={restaurant.logo} className="max-h-10 sm:max-h-12 md:max-h-16 lg:max-h-20 shrink" alt={restaurant?.name || "Logo"} />
+          )}
           <div className="flex flex-col justify-evenly">
-            <span className="text-[18px] sm:text-[20px] md:text-[24px] lg:text-[28px] font-extrabold">JAGUAR LOUNGE</span>
+            <span className="text-[18px] sm:text-[20px] md:text-[24px] lg:text-[28px] font-extrabold">
+              {restaurant?.name || "Yüklənir..."}
+            </span>
             <div className="flex text-[12px] md:text-[16px] items-center tracking-tight lg:text-[20px] gap-1">
               <span>{t.fresh}</span>
               <span className="w-1 h-1 rounded-full bg-[#3a513e]" />
@@ -345,7 +310,7 @@ export default function Home() {
 
         <div className="relative inline-flex items-center">
           <div className="pointer-events-none absolute left-3 z-10 flex items-center justify-center text-[#3a513e]">
-            <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={12} r={10} /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={12} r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg>
           </div>
           <select value={lang} onChange={handleLanguageChange} className="appearance-none bg-[#f9f3e7] text-[#3a513e] font-medium text-sm pl-9 pr-8 py-2 rounded-full border border-[#cac2a7]/40 focus:outline-none cursor-pointer relative z-0">
             <option value="az">AZ</option>
@@ -393,7 +358,7 @@ export default function Home() {
                   <path d="M7 2v20"/>
                   <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
                 </svg>
-                <span>{group === "ALL" ? t.all : (t.groups?.[group] || group)}</span>
+                <span>{group === "ALL" ? t.all : group}</span>
               </button>
             ))}
           </div>
@@ -417,6 +382,10 @@ export default function Home() {
         ref={productsRef}
         className="container mx-auto py-4 px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[#3a513e]"
       >
+        {error && <div className="bg-white rounded-[25px] p-6 text-sm text-red-600">{error}</div>}
+        {!error && displayedProducts.length === 0 && (
+          <div className="bg-white rounded-[25px] p-6 text-sm text-black/60">Məhsul tapılmadı</div>
+        )}
         {productsGrid}
       </div>
     </>

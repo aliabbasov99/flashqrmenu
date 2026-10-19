@@ -1,0 +1,233 @@
+[
+    {
+        "mGroup": "MENYU",
+        "mID": "504",
+        "mName": "ÇAY+MÜRƏBƏ 10",
+        "mPrice": 12.5,
+        "mSubName": "ÇAY+MÜRƏBƏ 10Sub"
+    },
+    {
+        "mGroup": "Услуги",
+        "mID": "535",
+        "mName": "OTAQ 405",
+        "mPrice": 35,
+        "mSubName": "OTAQ 405Sub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "505",
+        "mName": "ÇAY+NABOR 10",
+        "mPrice": 14.2,
+        "mSubName": "ÇAY+NABOR 10Sub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "506",
+        "mName": "ÇAY+LƏBLƏBİ",
+        "mPrice": 11.3,
+        "mSubName": "ÇAY+LƏBLƏBİSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "507",
+        "mName": "ÇAY+RULET",
+        "mPrice": 9.8,
+        "mSubName": "ÇAY+RULETSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "508",
+        "mName": "ÇAY+ŞOKOLAD",
+        "mPrice": 10.5,
+        "mSubName": "ÇAY+ŞOKOLADSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "509",
+        "mName": "ÇAY+PAXLAVA ASSORTİ",
+        "mPrice": 16.7,
+        "mSubName": "ÇAY+PAXLAVA ASSORTİSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "510",
+        "mName": "ÇAY YARIM PORS PAXLAVA",
+        "mPrice": 8.4,
+        "mSubName": "ÇAY YARIM PORS PAXLAVASub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "511",
+        "mName": "ÇAY (ƏLAVƏ)",
+        "mPrice": 3.5,
+        "mSubName": "ÇAY (ƏLAVƏ)Sub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "512",
+        "mName": "MÜRƏBBƏ",
+        "mPrice": 5.2,
+        "mSubName": "MÜRƏBBƏSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "513",
+        "mName": "NABOR",
+        "mPrice": 7.9,
+        "mSubName": "NABORSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "514",
+        "mName": "RULET ",
+        "mPrice": 6.3,
+        "mSubName": "RULET Sub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "515",
+        "mName": "ŞOKOLAD",
+        "mPrice": 4.7,
+        "mSubName": "ŞOKOLADSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "516",
+        "mName": "PAXLAVA",
+        "mPrice": 6.8,
+        "mSubName": "PAXLAVASub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "517",
+        "mName": "LƏBLƏBİ",
+        "mPrice": 5.6,
+        "mSubName": "LƏBLƏBİSub"
+    },
+    {
+        "mGroup": "QUTABLAR",
+        "mID": "518",
+        "mName": "KƏTƏ PENDİRLİ",
+        "mPrice": 4.5,
+        "mSubName": "KƏTƏ PENDİRLİSub"
+    },
+    {
+        "mGroup": "QUTABLAR",
+        "mID": "519",
+        "mName": "KƏTƏ",
+        "mPrice": 3.8,
+        "mSubName": "KƏTƏSub"
+    },
+    {
+        "mGroup": "QUTABLAR",
+        "mID": "520",
+        "mName": "ƏT ЙГЕФИАВП",
+        "mPrice": 5.9,
+        "mSubName": "ƏT ЙГЕФИАВПSub"
+    },
+    {
+        "mGroup": "QUTABLAR",
+        "mID": "521",
+        "mName": "QARIN",
+        "mPrice": 6.2,
+        "mSubName": "QARINSub"
+    },
+    {
+        "mGroup": "QUTABLAR",
+        "mID": "522",
+        "mName": "KARTOF FREE",
+        "mPrice": 4.3,
+        "mSubName": "KARTOF FREESub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "523",
+        "mName": "COLA (BANKA 330 ML)",
+        "mPrice": 2.8,
+        "mSubName": "COLA (BANKA 330 ML)Sub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "524",
+        "mName": "SU (QAZSIZ)",
+        "mPrice": 1.5,
+        "mSubName": "SU (QAZSIZ)Sub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "525",
+        "mName": "SİRAB (QAZLI,QAZSIZ)",
+        "mPrice": 2.2,
+        "mSubName": "SİRAB (QAZLI,QAZSIZ)Sub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "526",
+        "mName": "AYRAN",
+        "mPrice": 2.6,
+        "mSubName": "AYRANSub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "527",
+        "mName": "COLA, FANTA (0.5 L)",
+        "mPrice": 3.1,
+        "mSubName": "COLA, FANTA (0.5 L)Sub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "528",
+        "mName": "FUSE TEA (0,5 L)",
+        "mPrice": 3.4,
+        "mSubName": "FUSE TEA (0,5 L)Sub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "529",
+        "mName": "BARJOMİ",
+        "mPrice": 4.8,
+        "mSubName": "BARJOMİSub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "530",
+        "mName": "LİMONAD 0,5 L",
+        "mPrice": 3.2,
+        "mSubName": "LİMONAD 0,5 LSub"
+    },
+    {
+        "mGroup": "SOYUQ İÇKİLƏR",
+        "mID": "531",
+        "mName": "MEYVƏ ŞİRƏLƏRİ (1 L)",
+        "mPrice": 6.5,
+        "mSubName": "MEYVƏ ŞİRƏLƏRİ (1 L)Sub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "532",
+        "mName": "QATIQ",
+        "mPrice": 2.9,
+        "mSubName": "QATIQSub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "533",
+        "mName": "ACİKA",
+        "mPrice": 2.4,
+        "mSubName": "ACİKASub"
+    },
+    {
+        "mGroup": "MENYU",
+        "mID": "534",
+        "mName": "DONDURMA (150 QR)",
+        "mPrice": 5.5,
+        "mSubName": "DONDURMA (150 QR)Sub"
+    },
+    {
+        "mGroup": "QUTABLAR",
+        "mID": "536",
+        "mName": "TEST MEHSUL",
+        "mPrice": 7.3,
+        "mSubName": "TEST MEHSULSub"
+    }
+]

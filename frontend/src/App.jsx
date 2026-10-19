@@ -1,24 +1,41 @@
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route, useParams } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Detail from './pages/Detail'
 import Admin from './pages/Admin.jsx'
+import Panel from './pages/Panel.jsx'
+import Restaurants from './pages/Restaurants.jsx'
 import './index.css'
 import { config } from '@fortawesome/fontawesome-svg-core';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 config.autoAddCss = false;
 
+// key sayəsində restoran/məhsul dəyişəndə səhifə yenidən qurulur
+function HomeRoute() {
+  const { slug } = useParams()
+  return <Home key={slug} />
+}
+
+function DetailRoute() {
+  const { slug, id } = useParams()
+  return <Detail key={`${slug}-${id}`} />
+}
+
 export default function App() {
   return (
     <div>
-      {/* 1. ana sehife */}
       <Routes>
-        <Route path="/" element={<Home />} />
+        {/* Restoranlar siyahısı */}
+        <Route path="/" element={<Restaurants />} />
 
-        {/* yemek sehifesi */}
-        <Route path="/mehsul/:id" element={<Detail />} />
+        {/* Restoran menyusu */}
+        <Route path="/r/:slug" element={<HomeRoute />} />
+        <Route path="/r/:slug/m/:id" element={<DetailRoute />} />
 
-        {/* admin panel */}
+        {/* Super admin panel */}
         <Route path="/admin" element={<Admin />} />
+
+        {/* Restoran paneli */}
+        <Route path="/panel" element={<Panel />} />
       </Routes>
     </div>
   )
