@@ -59,6 +59,7 @@ export default function Home() {
   const productsRef = useRef(null);
   const chipRefs = useRef({});
   const pendingScrollRef = useRef(false);
+  const lastChipScrollRef = useRef(0);
 
   const [lang, setLang] = useState(() => {
     return localStorage.getItem("appLang") || "az";
@@ -88,7 +89,7 @@ export default function Home() {
             const fileName = fileKey.replace("images/", "");
             const lastDotIndex = fileName.lastIndexOf(".");
             const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
-            
+
             map[baseName] = `${R2_PUBLIC_URL}/${fileKey}`;
           });
           setImagesMap(map);
@@ -108,9 +109,11 @@ export default function Home() {
       .catch((error) => console.error("Tənzimlər çəkilərkən xəta:", error));
   }, []);
 
-  const availableGroups = data
-    ? ["ALL", ...Array.from(new Set(data.map((item) => item.mGroup))).filter(Boolean)]
-    : [];
+  const availableGroups = useMemo(
+    () =>
+      data ? ["ALL", ...Array.from(new Set(data.map((item) => item.mGroup))).filter(Boolean)] : [],
+    [data]
+  );
 
   // Kateqoriya başlıqlarını süzgəcdən keçirib yalnız həqiqi məhsulları saxlayırıq
   const products = useMemo(() => {
@@ -164,11 +167,11 @@ export default function Home() {
       const container = productsRef.current;
       if (!container) return;
 
-      const refLine =
+      const baseLine =
         (stickyRef.current ? stickyRef.current.getBoundingClientRect().bottom : 0) + 8;
 
       // Məhsullar hələ görünməyibsə (hero bölməsi) "HAMISI" aktivdir
-      if (container.getBoundingClientRect().top > refLine) {
+      if (container.getBoundingClientRect().top > baseLine) {
         setSpyGroup("ALL");
         return;
       }
@@ -176,22 +179,42 @@ export default function Home() {
       const cards = container.querySelectorAll("[data-group]");
       let next = "";
 
-      // Sətirin üstündən keçən ilk görünən məhsulun kateqoriyası aktiv sayılır
-      for (const card of cards) {
-        const group = card.dataset.group;
-        if (!group) continue;
-        if (card.getBoundingClientRect().bottom > refLine) {
-          next = group;
-          break;
-        }
-      }
+      const viewportH = window.innerHeight;
+      const remaining =
+        document.documentElement.scrollHeight - viewportH - window.scrollY;
 
-      // Siyahının sonuna qədər sürüşdürülübsə
-      if (!next) {
+      if (remaining <= 2) {
+        // Tam sona çatılıb: yalnız ən son kateqoriya aktivdir
         for (let i = cards.length - 1; i >= 0; i--) {
           if (cards[i].dataset.group) {
             next = cards[i].dataset.group;
             break;
+          }
+        }
+      } else {
+        // Sonuna yaxın istinad xətti yavaş-yavaş ekranın altına enir.
+        // Beləcə qısa son bloklar (məsələn 4 salat) də növbə ilə aktiv olur,
+        // tam sona çatanda isə ən son kateqoriya qalır, əlavə boşluq lazım deyil.
+        const zone = Math.max(1, viewportH - baseLine);
+        const progress = Math.min(1, Math.max(0, 1 - remaining / zone));
+        const refLine = baseLine + (viewportH - baseLine) * progress;
+
+        // Sətirin üstündən keçən ilk görünən məhsulun kateqoriyası aktiv sayılır
+        for (const card of cards) {
+          const group = card.dataset.group;
+          if (!group) continue;
+          if (card.getBoundingClientRect().bottom > refLine) {
+            next = group;
+            break;
+          }
+        }
+
+        if (!next) {
+          for (let i = cards.length - 1; i >= 0; i--) {
+            if (cards[i].dataset.group) {
+              next = cards[i].dataset.group;
+              break;
+            }
           }
         }
       }
@@ -221,8 +244,14 @@ export default function Home() {
     const chip = chipRefs.current[highlightedGroup];
     if (!strip || !chip) return;
 
-    const target = chip.offsetLeft - strip.clientWidth / 2 + chip.offsetWidth / 2;
-    strip.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+    const target = Math.max(0, chip.offsetLeft - strip.clientWidth / 2 + chip.offsetWidth / 2);
+    const now = performance.now();
+    // Sürətli scroll zamanı ardıcıl animasiyalar bir-birini kəsib gecikmə yaradır,
+    // ona görə qısa aralıqla dəyişiklikdə dəqiq mövqeyə ani keçirik
+    const behavior = now - lastChipScrollRef.current < 220 ? "auto" : "smooth";
+    lastChipScrollRef.current = now;
+
+    strip.scrollTo({ left: target, behavior });
   }, [highlightedGroup, availableGroups.length]);
 
   const scrollToProducts = () => {
@@ -250,6 +279,51 @@ export default function Home() {
     setActiveGroup(group);
     if (group !== "ALL") pendingScrollRef.current = true;
   };
+
+  // Scroll spy hər dəyişiklikdə yenidən render olmasın deyə siyahı yadda saxlanılır
+  const productsGrid = useMemo(
+    () => (
+      <div className="grid gap-2 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 items-stretch">
+        {displayedProducts.map((product) => {
+          const imgSrc = imagesMap[product.mID] || noPhoto;
+
+          return (
+            <div key={product.mID} data-group={product.mGroup || ""} className="h-full flex flex-col">
+              <div className="bg-white rounded-[25px] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full">
+                {/* Şəkil konteyneri */}
+                <div className="w-full aspect-[4/3] relative overflow-hidden shrink-0 bg-gray-50 border-b border-[#3a513e]">
+                  <img
+                    src={imgSrc}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = noPhoto;
+                    }}
+                    alt={product.mName}
+                    className="absolute inset-0 w-full h-full object-fill"
+                  />
+                </div>
+
+                <div className="px-4 py-3 flex flex-col justify-between flex-1">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-[#3a513e] font-semibold leading-tight line-clamp-2">
+                      {product.mName}
+                    </h3>
+                    <p className="text-black/60 text-xs sm:text-sm line-clamp-1 mt-1">
+                      {product.mSubName}
+                    </p>
+                  </div>
+                  <div className="text-[18px] sm:text-[20px] md:text-[22px] font-medium text-[#3a513e] mt-auto pt-2">
+                    {product.mPrice} <span>₼</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ),
+    [displayedProducts, imagesMap]
+  );
 
   return (
     <>
@@ -339,46 +413,11 @@ export default function Home() {
       </div>
 
       {/* Məhsullar Siyahısı */}
-      <div ref={productsRef} className="container mx-auto py-4 px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[#3a513e]">
-        <div className="grid gap-2 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 items-stretch">
-          {displayedProducts.map((product) => {
-            const imgSrc = imagesMap[product.mID] || noPhoto;
-
-            return (
-              <div key={product.mID} data-group={product.mGroup || ""} className="h-full flex flex-col">
-                <div className="bg-white rounded-[25px] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full">
-                  
-                  {/* Şəkil konteyneri */}
-                  <div className="w-full aspect-[4/3] relative overflow-hidden shrink-0 bg-gray-50 border-b border-[#3a513e]">
-                    <img 
-                      src={imgSrc} 
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = noPhoto;
-                      }}
-                      alt={product.mName} 
-                      className="absolute inset-0 w-full h-full object-fill" 
-                    />
-                  </div>
-
-                  <div className="px-4 py-3 flex flex-col justify-between flex-1">
-                    <div>
-                      <h3 className="text-sm sm:text-base font-[#3a513e] font-semibold leading-tight line-clamp-2">
-                        {product.mName}
-                      </h3>
-                      <p className="text-black/60 text-xs sm:text-sm line-clamp-1 mt-1">
-                        {product.mSubName}
-                      </p>
-                    </div>
-                    <div className="text-[18px] sm:text-[20px] md:text-[22px] font-medium text-[#3a513e] mt-auto pt-2">
-                      {product.mPrice} <span>₼</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div
+        ref={productsRef}
+        className="container mx-auto py-4 px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[#3a513e]"
+      >
+        {productsGrid}
       </div>
     </>
   );
