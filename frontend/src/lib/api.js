@@ -1,6 +1,10 @@
 export const AUTH_SUPER = "qr_auth_super";
 export const AUTH_PANEL = "qr_auth_panel";
 
+// Backend ayrıca yayınlananda VITE_API_URL ilə verilir (məs: https://api.example.com/api).
+// Boşdursa, eyni domendəki /api istifadə olunur.
+export const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+
 export function getAuth(key = AUTH_SUPER) {
   try {
     return JSON.parse(localStorage.getItem(key) || "null");
@@ -36,7 +40,7 @@ export async function api(path, { method = "GET", body, formData, token } = {}) 
     payload = JSON.stringify(body);
   }
 
-  const res = await fetch(`/api${path}`, { method, headers, body: payload });
+  const res = await fetch(`${API_BASE}${path}`, { method, headers, body: payload });
   const data = await res.json().catch(() => ({}));
   const message = String(data.msg || "");
 

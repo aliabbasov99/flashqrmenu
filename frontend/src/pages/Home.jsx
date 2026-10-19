@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import defaultHero from "../assets/img/hero.jpg";
 import divider from "../assets/img/divider.svg";
 import noPhoto from "../assets/img/no_photo.jpeg";
+import { API_BASE } from "../lib/api";
 
 const translations = {
   az: {
@@ -63,7 +64,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetch(`/api/restaurants/${encodeURIComponent(slug)}/menu`)
+    fetch(`${API_BASE}/restaurants/${encodeURIComponent(slug)}/menu`)
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok || data.msg !== "success") throw new Error("not found");

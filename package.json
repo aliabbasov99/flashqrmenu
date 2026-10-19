@@ -6,8 +6,9 @@
     "node": ">=18"
   },
   "scripts": {
+    "start": "node backend/server.js",
     "seed": "node scripts/seed.js",
-    "dev:api": "node scripts/dev-api.js",
+    "dev:api": "node backend/server.js",
     "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
     "lint": "npm --prefix frontend run lint"

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import noPhoto from "../assets/img/no_photo.jpeg";
+import { API_BASE } from "../lib/api";
 
 export default function Restaurants() {
   const [restaurants, setRestaurants] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/restaurants")
+    fetch(`${API_BASE}/restaurants`)
       .then((res) => res.json())
       .then((data) => {
         if (data.msg === "success") setRestaurants(data.restaurants);
@@ -68,7 +69,7 @@ export default function Restaurants() {
           ))}
         </div>
 
-        <div className="flex justify-center gap-4 mt-10 text-sm">
+        <div className="flex justify-center gap-4 mt-10 text-sm hidden">
           <Link to="/admin" className="underline text-black/60">
             Admin
           </Link>

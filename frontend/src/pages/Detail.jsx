@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import noPhoto from "../assets/img/no_photo.jpeg";
+import { API_BASE } from "../lib/api";
 
 const translations = {
   az: {
@@ -39,7 +40,7 @@ const Detail = () => {
   const [status, setStatus] = useState("loading");
 
   useEffect(() => {
-    fetch(`/api/restaurants/${encodeURIComponent(slug)}/menu`)
+    fetch(`${API_BASE}/restaurants/${encodeURIComponent(slug)}/menu`)
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok || data.msg !== "success") throw new Error("not found");

@@ -4,7 +4,7 @@ import { loadEnv } from "./env.js";
 
 loadEnv();
 
-const { createHandler } = await import("../frontend/server/handler.js");
+const { createHandler } = await import("../backend/server/handler.js");
 const handler = createHandler();
 const port = process.env.PORT || 3001;
 

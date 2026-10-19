@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MongoClient } from "mongodb";
-import { hashPassword } from "../frontend/server/auth.js";
+import { hashPassword } from "../backend/server/auth.js";
 import { loadEnv } from "./env.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

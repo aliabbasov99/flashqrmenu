@@ -6,7 +6,20 @@ export function createHandler() {
     try {
       const host = req.headers.host || "localhost";
       const proto = req.headers["x-forwarded-proto"] || "http";
-      const url = `${proto}://${host}${req.url || "/"}`;
+      const rawUrl = `${proto}://${host}${req.url || "/"}`;
+      const parsed = new URL(rawUrl);
+
+      // Vercel rewrite: /api/:path* -> /api?route=:path
+      // (bütün API sorğuları tək funksiyaya yönləndirilir)
+      if (
+        (parsed.pathname === "/api" || parsed.pathname === "/api/index") &&
+        parsed.searchParams.has("route")
+      ) {
+        const route = parsed.searchParams.get("route") || "";
+        parsed.searchParams.delete("route");
+        parsed.pathname = "/api/" + route;
+      }
+      const url = parsed.toString();
 
       const headers = new Headers();
       for (let i = 0; i < req.rawHeaders.length; i += 2) {
