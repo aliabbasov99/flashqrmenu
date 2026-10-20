@@ -64,6 +64,10 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (restaurant?.name) document.title = `${restaurant.name} — Menyu`;
+  }, [restaurant]);
+
+  useEffect(() => {
     fetch(`${API_BASE}/restaurants/${encodeURIComponent(slug)}/menu`)
       .then(async (res) => {
         const data = await res.json();
@@ -132,39 +136,39 @@ export default function Home() {
       }
 
       const cards = container.querySelectorAll("[data-group]");
+      const marker = baseLine + 12;
       let next = "";
 
-      const viewportH = window.innerHeight;
+      // Menyunun ən aşağısına gəlib çatdıqda həmişə ən sonuncu kateqoriya aktiv
+      // qalsın (qısa son bloklar belə aktiv olsun).
       const remaining =
-        document.documentElement.scrollHeight - viewportH - window.scrollY;
-
+        document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
       if (remaining <= 2) {
+        for (let i = cards.length - 1; i >= 0; i--) {
+          if (cards[i].dataset.group) {
+            setSpyGroup(cards[i].dataset.group);
+            return;
+          }
+        }
+      }
+
+      // İstinad xətti sabitdir: sticky zolağın altındakı ilk məhsulun kateqoriyası
+      // aktiv sayılır. Beləcə aşağı sürüşdükcə aktiv kateqoriya dəyişir; ən sona
+      // çatanda isə sonuncu kateqoriya görünür qalır.
+      for (const card of cards) {
+        const group = card.dataset.group;
+        if (!group) continue;
+        if (card.getBoundingClientRect().bottom > marker) {
+          next = group;
+          break;
+        }
+      }
+
+      if (!next) {
         for (let i = cards.length - 1; i >= 0; i--) {
           if (cards[i].dataset.group) {
             next = cards[i].dataset.group;
             break;
-          }
-        }
-      } else {
-        const zone = Math.max(1, viewportH - baseLine);
-        const progress = Math.min(1, Math.max(0, 1 - remaining / zone));
-        const refLine = baseLine + (viewportH - baseLine) * progress;
-
-        for (const card of cards) {
-          const group = card.dataset.group;
-          if (!group) continue;
-          if (card.getBoundingClientRect().bottom > refLine) {
-            next = group;
-            break;
-          }
-        }
-
-        if (!next) {
-          for (let i = cards.length - 1; i >= 0; i--) {
-            if (cards[i].dataset.group) {
-              next = cards[i].dataset.group;
-              break;
-            }
           }
         }
       }
@@ -237,8 +241,7 @@ export default function Home() {
 
           return (
             <div key={product._id} data-group={product.categoryName || ""} className="h-full flex flex-col">
-              <Link
-                to={`/r/${slug}/m/${product._id}`}
+              <div
                 className="bg-white rounded-[25px] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full"
               >
                 {/* Şəkil konteyneri */}
@@ -267,13 +270,13 @@ export default function Home() {
                     {product.price} <span>₼</span>
                   </div>
                 </div>
-              </Link>
+              </div>
             </div>
           );
         })}
       </div>
     ),
-    [displayedProducts, slug]
+    [displayedProducts]
   );
 
   if (notFound) {

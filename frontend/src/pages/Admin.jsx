@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api, getAuth, setAuth, clearAuth, AUTH_SUPER } from "../lib/api";
 
 const inputClass =
-  "border border-[#cac2a7]/60 rounded-xl px-3 py-2 bg-white text-[#3a513e] " +
+  "border border-[#cac2a7]/60 rounded-md px-3 py-2 bg-white text-[#3a513e] " +
   "focus:outline-none focus:border-[#3a513e] w-full";
 
 const labelClass = "flex flex-col gap-1 text-sm";
@@ -140,7 +140,7 @@ export default function Admin() {
         </div>
         <form
           onSubmit={handleLogin}
-          className="w-full max-w-sm bg-white rounded-[25px] shadow-sm p-6 flex flex-col gap-4"
+          className="w-full max-w-sm bg-white rounded-md shadow-sm p-6 flex flex-col gap-4"
         >
           <h1 className="text-xl font-extrabold">Super Admin girişi</h1>
           <input
@@ -160,7 +160,7 @@ export default function Admin() {
           />
           <button
             type="submit"
-            className="bg-[#3a513e] text-white rounded-xl py-2 font-medium cursor-pointer"
+            className="bg-[#3a513e] text-white rounded-md py-2 font-medium cursor-pointer"
           >
             Daxil ol
           </button>
@@ -191,7 +191,7 @@ export default function Admin() {
           <Link to="/" className="text-sm underline cursor-pointer">Səhifə</Link>
           <button
             onClick={handleLogout}
-            className="bg-[#3a513e] text-white text-sm rounded-full px-4 py-1.5 cursor-pointer"
+            className="bg-[#3a513e] text-white text-sm rounded-md px-4 py-1.5 cursor-pointer"
           >
             Çıxış
           </button>
@@ -202,7 +202,7 @@ export default function Admin() {
         {/* Restoran əlavə et */}
         <form
           onSubmit={handleCreate}
-          className="bg-white rounded-[25px] shadow-sm p-6 flex flex-col gap-4"
+          className="bg-white rounded-md shadow-sm p-6 flex flex-col gap-4"
         >
           <h2 className="text-xl font-semibold">Yeni restoran</h2>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -255,14 +255,14 @@ export default function Admin() {
           </div>
           <button
             type="submit"
-            className="bg-[#3a513e] text-white rounded-xl py-2 font-medium cursor-pointer self-start px-6"
+            className="bg-[#3a513e] text-white rounded-md py-2 font-medium cursor-pointer self-start px-6"
           >
             Əlavə et
           </button>
         </form>
 
         {/* Restoranlar */}
-        <div className="bg-white rounded-[25px] shadow-sm p-6 flex flex-col gap-4">
+        <div className="bg-white rounded-md shadow-sm p-6 flex flex-col gap-4">
           <h2 className="text-xl font-semibold">Restoranlar ({restaurants.length})</h2>
 
           {restaurants.length === 0 && (
@@ -270,7 +270,7 @@ export default function Admin() {
           )}
 
           {restaurants.map((r) => (
-            <div key={r._id} className="border border-[#cac2a7]/40 rounded-[20px] p-4 flex flex-col gap-3">
+            <div key={r._id} className="border border-[#cac2a7]/40 rounded-md p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex flex-col">
                   <span className="font-semibold">{r.name}</span>
@@ -280,7 +280,7 @@ export default function Admin() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-xs rounded-full px-2 py-1 ${
+                    className={`text-xs rounded-md px-2 py-1 ${
                       r.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
                     }`}
                   >
@@ -295,13 +295,13 @@ export default function Admin() {
                   </Link>
                   <button
                     onClick={() => (expanded === r._id ? setExpanded(null) : openEdit(r))}
-                    className="text-sm bg-[#f9f3e7] border border-[#cac2a7]/50 rounded-full px-3 py-1 cursor-pointer"
+                    className="text-sm bg-[#f9f3e7] border border-[#cac2a7]/50 rounded-md px-3 py-1 cursor-pointer"
                   >
                     {expanded === r._id ? "Bağla" : "Redaktə"}
                   </button>
                   <button
                     onClick={() => handleDelete(r)}
-                    className="text-sm bg-red-600/90 text-white rounded-full px-3 py-1 cursor-pointer"
+                    className="text-sm bg-red-600/90 text-white rounded-md px-3 py-1 cursor-pointer"
                   >
                     Sil
                   </button>
@@ -309,7 +309,7 @@ export default function Admin() {
               </div>
 
               {expanded === r._id && draft && (
-                <div className="grid sm:grid-cols-2 gap-4 bg-[#f9f3e7] rounded-[16px] p-4">
+                <div className="grid sm:grid-cols-2 gap-4 bg-[#f9f3e7] rounded-sm p-4">
                   <label className={labelClass}>
                     <span>Ad</span>
                     <input
@@ -347,7 +347,7 @@ export default function Admin() {
                     />
                   </label>
 
-                  <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 sm:col-span-2">
+                  <div className="flex items-center justify-between bg-white rounded-md px-4 py-3 sm:col-span-2">
                     <span className="text-sm font-medium">
                       {draft.active ? "Restoran aktivdir (menyu açıqdır)" : "Restoran deaktivdir"}
                     </span>
@@ -368,7 +368,7 @@ export default function Admin() {
 
                   <button
                     onClick={() => handleSave(r._id)}
-                    className="bg-[#3a513e] text-white rounded-xl py-2 font-medium cursor-pointer sm:col-span-2"
+                    className="bg-[#3a513e] text-white rounded-md py-2 font-medium cursor-pointer sm:col-span-2"
                   >
                     Yadda saxla
                   </button>
