@@ -3,6 +3,8 @@ import Home from './pages/Home.jsx'
 import Detail from './pages/Detail'
 import Admin from './pages/Admin.jsx'
 import Panel from './pages/Panel.jsx'
+import Order from './pages/Order.jsx'
+import Orders from './pages/Orders.jsx'
 import Restaurants from './pages/Restaurants.jsx'
 import './index.css'
 import { config } from '@fortawesome/fontawesome-svg-core';
@@ -36,6 +38,11 @@ export default function App() {
 
         {/* Restoran paneli */}
         <Route path="/panel" element={<Panel />} />
+
+        {/* Ofisiant sifarişi və kassa */}
+        <Route path="/order" element={<Order />} />
+        <Route path="/order/:slug" element={<Order />} />
+        <Route path="/orders" element={<Orders />} />
       </Routes>
     </div>
   )

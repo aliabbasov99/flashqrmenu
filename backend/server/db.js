@@ -28,6 +28,14 @@ export async function ensureIndexes() {
     await categories.createIndex({ restaurantId: 1, order: 1 });
     const products = await col("products");
     await products.createIndex({ restaurantId: 1, order: 1 });
+    const orders = await col("orders");
+    await orders.createIndex({ restaurantId: 1, createdAt: -1 });
+    await orders.createIndex({ restaurantId: 1, status: 1 });
+    // Sifarişlər yaradıldıqdan 24 saat sonra MongoDB tərəfindən avtomatik silinir
+    await orders.createIndex(
+      { createdAt: 1 },
+      { expireAfterSeconds: 24 * 60 * 60, name: "orders_ttl_24h" }
+    );
     globalThis.__qrIndexed = true;
   } catch (e) {
     // indeks yaradılmasa əsas iş davam edir

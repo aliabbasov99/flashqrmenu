@@ -18,6 +18,7 @@ const superCreds = () => ({
 });
 
 const THEME_IDS = new Set(["green", "wine", "navy", "brown", "terracotta", "charcoal"]);
+const ORDER_STATUSES = new Set(["new", "processing", "done", "cancelled"]);
 
 const oid = (id) => {
   try {
@@ -55,6 +56,27 @@ function publicRestaurant(r) {
     subscriptionExpired: subscriptionExpired(r),
     hours: r.hours || {},
     workHours: buildWorkHours(r.hours || {})
+  };
+}
+
+function publicOrder(o) {
+  if (!o) return null;
+  const items = Array.isArray(o.items) ? o.items : [];
+  return {
+    _id: String(o._id),
+    order: Number(o.order) || 0,
+    table: o.table || "",
+    note: o.note || "",
+    items: items.map((i) => ({
+      productId: i.productId ? String(i.productId) : "",
+      name: i.name || "",
+      price: Number(i.price) || 0,
+      qty: Number(i.qty) || 1
+    })),
+    total: Number(o.total) || 0,
+    status: ORDER_STATUSES.has(o.status) ? o.status : "new",
+    createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : "",
+    updatedAt: o.updatedAt ? new Date(o.updatedAt).toISOString() : ""
   };
 }
 
@@ -559,6 +581,122 @@ async function route(request, seg, method) {
       if (!current) throw err("Məhsul tapılmadı", 404);
       if (current.imagePublicId) await deleteImage(current.imagePublicId);
       await products.updateOne({ _id }, { $set: { image: "", imagePublicId: "" } });
+      return json({ msg: "success" });
+    }
+
+    // --- Sifarişlər ---
+    if (path === "panel/orders" && method === "GET") {
+      const url = new URL(request.url);
+      const since = url.searchParams.get("since");
+      const status = url.searchParams.get("status");
+      const filter = { restaurantId: restaurant._id };
+
+      if (since) {
+        const date = new Date(since);
+        if (!Number.isNaN(date.getTime())) filter.createdAt = { $gt: date };
+      }
+      if (status && ORDER_STATUSES.has(status)) filter.status = status;
+      else if (status === "active") filter.status = { $in: ["new", "processing"] };
+
+      const orders = await col("orders");
+      // TTL indeksinə əlavə olaraq, oxuyarkən 24 saatdan köhnə sifarişləri təmizlə
+      await orders.deleteMany({
+        restaurantId: restaurant._id,
+        createdAt: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      });
+      const list = await orders
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .limit(300)
+        .toArray();
+      return json({ msg: "success", orders: list.map(publicOrder) });
+    }
+
+    if (path === "panel/orders" && method === "POST") {
+      const body = await readBody(request);
+      const rawItems = Array.isArray(body.items) ? body.items : [];
+      if (!rawItems.length) throw err("Sifariş boşdur");
+
+      const products = await col("products");
+      const ids = [];
+      for (const raw of rawItems) {
+        const id = String(raw?.productId || "");
+        if (ObjectId.isValid(id) && !ids.some((x) => x.equals(id))) {
+          ids.push(new ObjectId(id));
+        }
+      }
+      if (!ids.length) throw err("Sifarişdə məhsul yoxdur");
+
+      const found = await products
+        .find({ _id: { $in: ids }, restaurantId: restaurant._id })
+        .toArray();
+      const productMap = new Map(found.map((p) => [String(p._id), p]));
+
+      const merged = new Map();
+      for (const raw of rawItems) {
+        const product = productMap.get(String(raw?.productId || ""));
+        if (!product) continue;
+        const id = String(product._id);
+        const qty = Math.max(1, Math.min(999, Math.floor(Number(raw?.qty) || 1)));
+        const current = merged.get(id);
+        if (current) current.qty += qty;
+        else {
+          merged.set(id, {
+            productId: id,
+            name: product.name || "",
+            price: Number(product.price) || 0,
+            qty
+          });
+        }
+      }
+      const items = [...merged.values()];
+      if (!items.length) throw err("Məhsullar tapılmadı");
+
+      const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+      const orders = await col("orders");
+      const now = new Date();
+      const doc = {
+        restaurantId: restaurant._id,
+        order: await nextOrder(restaurant._id, "orders"),
+        table: String(body.table || "").trim().slice(0, 40),
+        note: String(body.note || "").trim().slice(0, 300),
+        items,
+        total,
+        status: "new",
+        createdAt: now,
+        updatedAt: now
+      };
+      const res = await orders.insertOne(doc);
+      return json({ msg: "success", order: publicOrder({ ...doc, _id: res.insertedId }) });
+    }
+
+    if (seg[1] === "orders" && seg[2] && method === "PUT") {
+      const body = await readBody(request);
+      const status = String(body.status || "").trim();
+      if (!ORDER_STATUSES.has(status)) throw err("Yanlış sifariş statusu");
+
+      const _id = oid(seg[2]);
+      const orders = await col("orders");
+      const current = await orders.findOne({ _id, restaurantId: restaurant._id });
+      if (!current) throw err("Sifariş tapılmadı", 404);
+
+      const now = new Date();
+      await orders.updateOne({ _id }, { $set: { status, updatedAt: now } });
+      return json({
+        msg: "success",
+        order: publicOrder({ ...current, status, updatedAt: now })
+      });
+    }
+
+    if (seg[1] === "orders" && seg[2] && method === "DELETE") {
+      const _id = oid(seg[2]);
+      const orders = await col("orders");
+      const current = await orders.findOne({ _id, restaurantId: restaurant._id });
+      if (!current) throw err("Sifariş tapılmadı", 404);
+      if (!["done", "cancelled"].includes(current.status)) {
+        throw err("Əvvəlcə sifarişi bağlayın", 400);
+      }
+      await orders.deleteOne({ _id });
       return json({ msg: "success" });
     }
   }

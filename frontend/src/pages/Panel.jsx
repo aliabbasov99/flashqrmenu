@@ -4,6 +4,7 @@ import noPhoto from "../assets/img/no_photo.jpeg";
 import QRCode from "qrcode";
 import { api, getAuth, setAuth, clearAuth, AUTH_PANEL, resizeImage } from "../lib/api";
 import { THEMES, getTheme } from "../lib/themes";
+import OrderBuilder from "../components/OrderBuilder";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
@@ -145,6 +146,11 @@ export default function Panel() {
   const [prodDraft, setProdDraft] = useState(null);
   const [uploadingId, setUploadingId] = useState(null);
   const [search, setSearch] = useState("");
+
+  const [newCategory, setNewCategory] = useState("");
+  const [editingCat, setEditingCat] = useState(null);
+  const [catDraft, setCatDraft] = useState("");
+  const [catBusy, setCatBusy] = useState(false);
 
   const [status, setStatus] = useState({ type: "", text: "" });
 
@@ -324,8 +330,111 @@ export default function Panel() {
     }
   };
 
-  // ---------- Məhsullar ----------
+  // ---------- Kateqoriyalar ----------
   const categoryNameOf = (id) => categories.find((c) => c._id === id)?.name || "";
+  const productCountOf = (id) => products.filter((p) => p.categoryId === id).length;
+
+  const addCategory = async (e) => {
+    e.preventDefault();
+    const name = newCategory.trim();
+    if (!name) return notify("error", "Kateqoriya adı lazımdır");
+    setCatBusy(true);
+    try {
+      const data = await api("/panel/categories", {
+        method: "POST",
+        token,
+        body: { name }
+      });
+      setCategories((list) => [...list, data.category]);
+      setNewCategory("");
+      notify("success", "Kateqoriya əlavə olundu ✅");
+    } catch (err) {
+      notify("error", err.message);
+    } finally {
+      setCatBusy(false);
+    }
+  };
+
+  const openCategoryEdit = (c) => {
+    setEditingCat(c._id);
+    setCatDraft(c.name);
+  };
+
+  const saveCategory = async (id) => {
+    const name = catDraft.trim();
+    if (!name) return notify("error", "Kateqoriya adı lazımdır");
+    setCatBusy(true);
+    try {
+      await api(`/panel/categories/${id}`, {
+        method: "PUT",
+        token,
+        body: { name }
+      });
+      setCategories((list) => list.map((c) => (c._id === id ? { ...c, name } : c)));
+      setProducts((list) =>
+        list.map((p) => (p.categoryId === id ? { ...p, categoryName: name } : p))
+      );
+      setEditingCat(null);
+      setCatDraft("");
+      notify("success", "Kateqoriya yeniləndi ✅");
+    } catch (err) {
+      notify("error", err.message);
+    } finally {
+      setCatBusy(false);
+    }
+  };
+
+  const deleteCategory = async (cat) => {
+    const count = productCountOf(cat._id);
+    const extra = count
+      ? ` Bu kateqoriyadakı ${count} məhsul kateqoriyasız qalacaq.`
+      : "";
+    if (!confirm(`"${cat.name}" kateqoriyası silinsin?${extra}`)) return;
+    try {
+      await api(`/panel/categories/${cat._id}`, { method: "DELETE", token });
+      setCategories((list) => list.filter((c) => c._id !== cat._id));
+      setProducts((list) =>
+        list.map((p) =>
+          p.categoryId === cat._id ? { ...p, categoryId: "", categoryName: "" } : p
+        )
+      );
+      notify("success", "Kateqoriya silindi ✅");
+    } catch (err) {
+      notify("error", err.message);
+    }
+  };
+
+  const moveCategory = async (cat, direction) => {
+    const index = categories.findIndex((c) => c._id === cat._id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= categories.length) return;
+
+    const previous = categories;
+    const next = [...categories];
+    [next[index], next[target]] = [next[target], next[index]];
+    const withOrder = next.map((c, i) => ({ ...c, order: i + 1 }));
+    setCategories(withOrder);
+
+    try {
+      await Promise.all(
+        withOrder
+          .filter((c) => Number(previous.find((x) => x._id === c._id)?.order || 0) !== c.order)
+          .map((c) =>
+            api(`/panel/categories/${c._id}`, {
+              method: "PUT",
+              token,
+              body: { order: c.order }
+            })
+          )
+      );
+      notify("success", "Kateqoriya sırası yeniləndi ✅");
+    } catch (err) {
+      setCategories(previous);
+      notify("error", err.message);
+    }
+  };
+
+  // ---------- Məhsullar ----------
 
   const addProduct = async (e) => {
     e.preventDefault();
@@ -502,6 +611,8 @@ export default function Panel() {
 
   const tabs = [
     { id: "settings", label: "Tənzimlər" },
+    { id: "order", label: "Sifariş" },
+    { id: "categories", label: `Kateqoriyalar (${categories.length})` },
     { id: "products", label: `Məhsullar (${products.length})` }
   ];
 
@@ -518,6 +629,9 @@ export default function Panel() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/orders" className="text-sm underline">
+            Sifarişlər
+          </Link>
           <Link to={`/r/${restaurant?.slug}`} className="text-sm underline" target="_blank">
             Menyu
           </Link>
@@ -728,6 +842,172 @@ export default function Panel() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============ SİFARİŞ ============ */}
+        {tab === "order" && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-white rounded-md shadow-sm p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-xl font-semibold">Sifariş</h2>
+                <p className="text-sm text-black/60">
+                  Məhsul seçin, sayı artırın və cəmi yoxlayın. Göndərdikdən sonra sifariş
+                  kassa ekranına düşəcək.
+                </p>
+              </div>
+              <Link
+                to="/orders"
+                className={btnPrimary + " text-center shrink-0"}
+              >
+                Sifarişləri izlə
+              </Link>
+            </div>
+
+            <OrderBuilder
+              token={token}
+              categories={categories}
+              products={products}
+              restaurant={restaurant}
+            />
+          </div>
+        )}
+
+        {/* ============ KATEQORİYALAR ============ */}
+        {tab === "categories" && (
+          <div className="flex flex-col gap-6">
+            <form onSubmit={addCategory} className="bg-white rounded-md shadow-sm p-6 flex flex-col gap-4">
+              <h2 className="text-xl font-semibold">Yeni kateqoriya</h2>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="Məsələn: Soyuq içkilər"
+                  className={inputClass}
+                />
+                <button type="submit" disabled={catBusy} className={btnPrimary + " shrink-0"}>
+                  {catBusy ? "..." : "Əlavə et"}
+                </button>
+              </div>
+            </form>
+
+            <div className="bg-white rounded-md shadow-sm p-6 flex flex-col gap-3">
+              <h2 className="text-xl font-semibold">Kateqoriyalar</h2>
+              <p className="text-sm text-black/60">
+                Adı dəyişmək üçün "Redaktə"yə basın. Sıranı yuxarı/aşağı düymələri ilə dəyişə
+                bilərsiniz. Silinən kateqoriyadakı məhsullar kateqoriyasız qalacaq.
+              </p>
+
+              {categories.length === 0 && (
+                <p className="text-sm text-black/60">Hələlik kateqoriya yoxdur.</p>
+              )}
+
+              {categories.map((c, i) => {
+                const count = productCountOf(c._id);
+                return (
+                  <div
+                    key={c._id}
+                    className="border border-[#cac2a7]/40 rounded-md p-3 flex flex-col gap-2"
+                  >
+                    {editingCat === c._id ? (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          value={catDraft}
+                          onChange={(e) => setCatDraft(e.target.value)}
+                          className={inputClass}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              saveCategory(c._id);
+                            }
+                            if (e.key === "Escape") {
+                              setEditingCat(null);
+                              setCatDraft("");
+                            }
+                          }}
+                        />
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => saveCategory(c._id)}
+                            disabled={catBusy}
+                            className={btnPrimary}
+                          >
+                            {catBusy ? "..." : "Yadda saxla"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCat(null);
+                              setCatDraft("");
+                            }}
+                            className={btnGhost}
+                          >
+                            Ləğv
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex flex-col flex-1 min-w-[140px]">
+                          <span className="font-medium leading-tight">{c.name}</span>
+                          <span className="text-xs text-black/50">
+                            {count > 0 ? `${count} məhsul` : "məhsul yoxdur"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveCategory(c, -1)}
+                            disabled={i === 0}
+                            title="Yuxarı"
+                            className={
+                              btnGhost +
+                              " px-3" +
+                              (i === 0 ? " opacity-40 cursor-not-allowed" : "")
+                            }
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveCategory(c, 1)}
+                            disabled={i === categories.length - 1}
+                            title="Aşağı"
+                            className={
+                              btnGhost +
+                              " px-3" +
+                              (i === categories.length - 1
+                                ? " opacity-40 cursor-not-allowed"
+                                : "")
+                            }
+                          >
+                            ↓
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => openCategoryEdit(c)}
+                          className={btnGhost}
+                        >
+                          Redaktə
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteCategory(c)}
+                          className="text-sm bg-red-600/90 text-white rounded-md px-3 py-2 cursor-pointer"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
