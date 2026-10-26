@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+:root {
+  --qr-primary: #3a513e;
+  --qr-bg: #fbf7ee;
+  --qr-soft: #f9f3e7;
+  --qr-soft-hover: #f5ebd7;
+  --qr-border: #cac2a7;
+  --qr-muted: #f0ece1;
+  --qr-info-bg: #f0ede3;
+  --qr-info-border: #ece6dd;
+  --qr-info-text: #374427;
+}
+
 body {
   font-family: Poppins, sans-serif;
 }

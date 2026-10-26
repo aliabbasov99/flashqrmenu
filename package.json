@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node backend/server.js",
     "seed": "node scripts/seed.js",
+    "seed:demo": "node scripts/seed-demo.js",
     "dev:api": "node backend/server.js",
     "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",

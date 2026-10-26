@@ -17,6 +17,8 @@ const superCreds = () => ({
   password: process.env.ADMIN_PASSWORD || "jaguar"
 });
 
+const THEME_IDS = new Set(["green", "wine", "navy", "brown", "terracotta", "charcoal"]);
+
 const oid = (id) => {
   try {
     return new ObjectId(String(id));
@@ -24,6 +26,20 @@ const oid = (id) => {
     throw err("Yanlış ID", 400);
   }
 };
+
+function subscriptionExpired(r) {
+  if (!r || !r.subscriptionUntil) return false;
+  const until = r.subscriptionUntil instanceof Date ? r.subscriptionUntil : new Date(r.subscriptionUntil);
+  if (Number.isNaN(until.getTime())) return false;
+  return Date.now() > until.getTime();
+}
+
+function dateInput(value) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
 
 function publicRestaurant(r) {
   if (!r) return null;
@@ -34,6 +50,9 @@ function publicRestaurant(r) {
     logo: r.logo || "",
     heroImage: r.heroImage || "",
     active: r.active !== false,
+    theme: THEME_IDS.has(r.theme) ? r.theme : "green",
+    subscriptionUntil: dateInput(r.subscriptionUntil),
+    subscriptionExpired: subscriptionExpired(r),
     hours: r.hours || {},
     workHours: buildWorkHours(r.hours || {})
   };
@@ -118,7 +137,10 @@ async function route(request, seg, method) {
   if (path === "restaurants" && method === "GET") {
     const restaurants = await col("restaurants");
     const list = await restaurants
-      .find({ active: { $ne: false } })
+      .find({
+        active: { $ne: false },
+        $or: [{ subscriptionUntil: null }, { subscriptionUntil: { $gt: new Date() } }]
+      })
       .project({ slug: 1, name: 1, heroImage: 1, logo: 1 })
       .sort({ name: 1 })
       .toArray();
@@ -128,7 +150,7 @@ async function route(request, seg, method) {
   if (seg[0] === "restaurants" && seg[1] && method === "GET") {
     const restaurants = await col("restaurants");
     const restaurant = await restaurants.findOne({ slug: seg[1] });
-    if (!restaurant || restaurant.active === false) {
+    if (!restaurant || restaurant.active === false || subscriptionExpired(restaurant)) {
       throw err("Restoran tapılmadı", 404);
     }
 
@@ -202,6 +224,7 @@ async function route(request, seg, method) {
         username,
         passwordHash: hashPassword(password),
         active: true,
+        theme: "green",
         logo: "",
         heroImage: "",
         heroPublicId: "",
@@ -232,6 +255,20 @@ async function route(request, seg, method) {
         updates.passwordHash = hashPassword(body.password.trim());
       }
       if (typeof body.active === "boolean") updates.active = body.active;
+
+      if (body.subscriptionUntil !== undefined) {
+        const raw = String(body.subscriptionUntil || "").trim();
+        if (!raw) {
+          updates.subscriptionUntil = null;
+        } else {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw err("Tarix formatı yanlışdır (YYYY-MM-DD)");
+          const until = new Date(`${raw}T23:59:59.999Z`);
+          if (Number.isNaN(until.getTime()) || dateInput(until) !== raw) {
+            throw err("Yanlış tarix");
+          }
+          updates.subscriptionUntil = until;
+        }
+      }
 
       if (body.slug !== undefined) {
         const slug = slugify(body.slug);
@@ -297,6 +334,11 @@ async function route(request, seg, method) {
     }
     if (body.logo !== undefined) {
       updates.logo = String(body.logo || "").trim();
+    }
+    if (typeof body.theme === "string") {
+      const theme = body.theme.trim();
+      if (theme && !THEME_IDS.has(theme)) throw err("Yanlış rəng teması");
+      updates.theme = theme || "green";
     }
 
     if (Object.keys(updates).length) {

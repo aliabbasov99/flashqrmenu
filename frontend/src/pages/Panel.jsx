@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import noPhoto from "../assets/img/no_photo.jpeg";
+import QRCode from "qrcode";
 import { api, getAuth, setAuth, clearAuth, AUTH_PANEL, resizeImage } from "../lib/api";
+import { THEMES, getTheme } from "../lib/themes";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
@@ -132,6 +134,8 @@ export default function Panel() {
   const [products, setProducts] = useState([]);
 
   const [hours, setHours] = useState({ start: "15:00", end: "02:00", label: "", format: "24" });
+  const [theme, setTheme] = useState("green");
+  const [qrDataUrl, setQrDataUrl] = useState("");
   const [newPass, setNewPass] = useState("");
   const [heroPreview, setHeroPreview] = useState("");
   const heroFileRef = useRef(null);
@@ -159,6 +163,7 @@ export default function Panel() {
     setHours(
       info.restaurant.hours || { start: "15:00", end: "02:00", label: "", format: "24" }
     );
+    setTheme(info.restaurant.theme || "green");
     setHeroPreview(info.restaurant.heroImage || "");
   };
 
@@ -176,6 +181,7 @@ export default function Panel() {
         setHours(
           info.restaurant.hours || { start: "15:00", end: "02:00", label: "", format: "24" }
         );
+        setTheme(info.restaurant.theme || "green");
         setHeroPreview(info.restaurant.heroImage || "");
       })
       .catch(() => {
@@ -185,6 +191,31 @@ export default function Panel() {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const menuUrl = restaurant?.slug
+    ? `${window.location.origin}/r/${restaurant.slug}`
+    : "";
+
+  useEffect(() => {
+    if (!menuUrl) return;
+    QRCode.toDataURL(menuUrl, {
+      width: 640,
+      margin: 2,
+      color: { dark: getTheme(theme).vars["--qr-primary"], light: "#ffffff" }
+    })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(""));
+  }, [menuUrl, theme]);
+
+  const copyMenuLink = async () => {
+    if (!menuUrl) return;
+    try {
+      await navigator.clipboard.writeText(menuUrl);
+      notify("success", "Link kopyalandı ✅");
+    } catch {
+      notify("error", "Linki kopyalamaq mümkün olmadı");
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -225,10 +256,11 @@ export default function Panel() {
     e.preventDefault();
     notify("", "");
     try {
-      const body = { hours };
+      const body = { hours, theme };
       if (newPass.trim()) body.password = newPass.trim();
       const data = await api("/panel/restaurant", { method: "PUT", token, body });
       setRestaurant(data.restaurant);
+      setTheme(data.restaurant.theme || "green");
       setNewPass("");
       notify("success", "Tənzimləmlər saxlanıldı ✅");
     } catch (err) {
@@ -541,6 +573,33 @@ export default function Panel() {
                 </span>
               </div>
 
+              <div className="flex flex-col gap-2">
+                <span className="text-sm">Rəng teması</span>
+                <div className="flex flex-wrap gap-2">
+                  {THEMES.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => setTheme(item.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md border text-sm cursor-pointer transition-colors ${
+                        theme === item.id
+                          ? "border-[#3a513e] bg-[#f9f3e7] font-medium"
+                          : "border-[#cac2a7]/50 bg-white"
+                      }`}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full border border-black/10 shrink-0"
+                        style={{ backgroundColor: item.vars["--qr-primary"] }}
+                      />
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs text-black/50">
+                  Menyunun rəng teması. Saxladıqdan sonra menyunu yeniləyin.
+                </span>
+              </div>
+
               <label className={labelClass}>
                 <span>Yeni panel parolu (boşdursa dəyişmə)</span>
                 <input
@@ -556,6 +615,50 @@ export default function Panel() {
                 Yadda saxla
               </button>
             </form>
+
+            {/* QR kod */}
+            <div className="bg-white rounded-md shadow-sm p-6 flex flex-col gap-4">
+              <h2 className="text-xl font-semibold">QR kod</h2>
+              <p className="text-sm text-black/60">
+                Müştəri bu QR kodu oxutduqda birbaşa restoranın menyusuna keçəcək.
+              </p>
+              <div className="flex flex-col sm:flex-row items-start gap-6">
+                <div className="bg-white border border-[#cac2a7]/50 rounded-md p-3 shrink-0">
+                  {qrDataUrl ? (
+                    <img src={qrDataUrl} alt="Menyu QR kodu" className="w-48 h-48" />
+                  ) : (
+                    <div className="w-48 h-48 flex items-center justify-center text-sm text-black/40">
+                      Hazırlanır...
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-3 min-w-0">
+                  <a
+                    href={menuUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm underline break-all"
+                  >
+                    {menuUrl}
+                  </a>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={qrDataUrl || "#"}
+                      download={`menyu-${restaurant?.slug || "qr"}.png`}
+                      className={btnPrimary + (qrDataUrl ? "" : " pointer-events-none opacity-50")}
+                    >
+                      QR-ı yüklə
+                    </a>
+                    <button type="button" onClick={copyMenuLink} className={btnGhost}>
+                      Linki kopyala
+                    </button>
+                  </div>
+                  <span className="text-xs text-black/50">
+                    Çap üçün yüksək keyfiyyətli PNG yükləyə bilərsiniz.
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {/* Logo */}
             <div className="bg-white rounded-md shadow-sm p-6 flex flex-col gap-4">

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="48" fill="#a24e2d"/>
+  <circle cx="100" cy="100" r="74" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.55"/>
+  <text x="100" y="108" font-family="Poppins, Arial, sans-serif" font-size="58" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="3">DL</text>
+  <text x="100" y="140" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#ffffff" text-anchor="middle" letter-spacing="6" opacity="0.9">LOUNGE</text>
+</svg>

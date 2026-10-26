@@ -86,7 +86,14 @@ export default function Admin() {
 
   const openEdit = (r) => {
     setExpanded(r._id);
-    setDraft({ name: r.name, slug: r.slug, username: r.username, password: "", active: r.active });
+    setDraft({
+      name: r.name,
+      slug: r.slug,
+      username: r.username,
+      password: "",
+      active: r.active,
+      subscriptionUntil: r.subscriptionUntil || ""
+    });
     setStatus({ type: "", text: "" });
   };
 
@@ -286,6 +293,15 @@ export default function Admin() {
                   >
                     {r.active ? "Aktiv" : "Deaktiv"}
                   </span>
+                  {r.subscriptionExpired ? (
+                    <span className="text-xs rounded-md px-2 py-1 bg-red-100 text-red-600">
+                      Abunelik bitib
+                    </span>
+                  ) : r.subscriptionUntil ? (
+                    <span className="text-xs rounded-md px-2 py-1 bg-[#f9f3e7] text-[#3a513e] border border-[#cac2a7]/50">
+                      Abunelik: {r.subscriptionUntil}
+                    </span>
+                  ) : null}
                   <Link
                     to={`/r/${r.slug}`}
                     className="text-sm underline cursor-pointer"
@@ -345,6 +361,20 @@ export default function Admin() {
                       className={inputClass}
                       placeholder="••••••"
                     />
+                  </label>
+                  <label className={labelClass}>
+                    <span>Abunelik bitmə tarixi</span>
+                    <input
+                      type="date"
+                      value={draft.subscriptionUntil}
+                      onChange={(e) =>
+                        setDraft((d) => ({ ...d, subscriptionUntil: e.target.value }))
+                      }
+                      className={inputClass}
+                    />
+                    <span className="text-xs text-black/50">
+                      Bu tarixə qədər menyu açıq olacaq. Boş = limitsiz.
+                    </span>
                   </label>
 
                   <div className="flex items-center justify-between bg-white rounded-md px-4 py-3 sm:col-span-2">

@@ -4,6 +4,7 @@ import defaultHero from "../assets/img/hero.jpg";
 import divider from "../assets/img/divider.svg";
 import noPhoto from "../assets/img/no_photo.jpeg";
 import { API_BASE } from "../lib/api";
+import { themeStyle } from "../lib/themes";
 
 const translations = {
   az: {
@@ -245,7 +246,7 @@ export default function Home() {
                 className="bg-white rounded-[25px] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full"
               >
                 {/* Şəkil konteyneri */}
-                <div className="w-full aspect-[4/3] relative overflow-hidden shrink-0 bg-gray-50 border-b border-[#3a513e]">
+                <div className="w-full aspect-[4/3] relative overflow-hidden shrink-0 bg-gray-50 border-b border-[var(--qr-primary)]">
                   <img
                     src={imgSrc}
                     onError={(e) => {
@@ -259,14 +260,14 @@ export default function Home() {
 
                 <div className="px-4 py-3 flex flex-col justify-between flex-1">
                   <div>
-                    <h3 className="text-sm sm:text-base font-[#3a513e] font-semibold leading-tight line-clamp-2">
+                    <h3 className="text-sm sm:text-base text-[var(--qr-primary)] font-semibold leading-tight line-clamp-2">
                       {product.name}
                     </h3>
                     <p className="text-black/60 text-xs sm:text-sm line-clamp-1 mt-1">
                       {product.subName}
                     </p>
                   </div>
-                  <div className="text-[18px] sm:text-[20px] md:text-[22px] font-medium text-[#3a513e] mt-auto pt-2">
+                  <div className="text-[18px] sm:text-[20px] md:text-[22px] font-medium text-[var(--qr-primary)] mt-auto pt-2">
                     {product.price} <span>₼</span>
                   </div>
                 </div>
@@ -281,8 +282,11 @@ export default function Home() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#fbf7ee] text-[#3a513e] px-4">
-        <p className="text-lg font-semibold">Restoran tapılmadı</p>
+      <div
+        style={themeStyle()}
+        className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[var(--qr-bg)] text-[var(--qr-primary)] px-4"
+      >
+        <p className="text-lg font-semibold">404 — Restoran tapılmadı</p>
         <Link to="/" className="underline text-sm">
           Restoranlar siyahısı
         </Link>
@@ -291,9 +295,9 @@ export default function Home() {
   }
 
   return (
-    <>
+    <div style={themeStyle(restaurant?.theme)} className="min-h-screen bg-[var(--qr-bg)]">
       {/* Header / Logo / Language Selection */}
-      <div className="container flex flex-row justify-between mx-auto py-4 max-w-[550px] px-2 lg:px-0 md:max-w-[720px] lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl items-center text-[#3a513e]">
+      <div className="container flex flex-row justify-between mx-auto py-4 max-w-[550px] px-2 lg:px-0 md:max-w-[720px] lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl items-center text-[var(--qr-primary)]">
         <div className="flex flex-row items-center gap-3">
           {restaurant?.logo && (
             <img src={restaurant.logo} className="max-h-10 sm:max-h-12 md:max-h-16 lg:max-h-20 shrink" alt={restaurant?.name || "Logo"} />
@@ -304,33 +308,33 @@ export default function Home() {
             </span>
             <div className="flex text-[12px] md:text-[16px] items-center tracking-tight lg:text-[20px] gap-1">
               <span>{t.fresh}</span>
-              <span className="w-1 h-1 rounded-full bg-[#3a513e]" />
+              <span className="w-1 h-1 rounded-full bg-[var(--qr-primary)]" />
               <span>{t.local}</span>
-              <span className="w-1 h-1 rounded-full bg-[#3a513e]" />
+              <span className="w-1 h-1 rounded-full bg-[var(--qr-primary)]" />
               <span>{t.seasonal}</span>
             </div>
           </div>
         </div>
 
         <div className="relative inline-flex items-center">
-          <div className="pointer-events-none absolute left-3 z-10 flex items-center justify-center text-[#3a513e]">
+          <div className="pointer-events-none absolute left-3 z-10 flex items-center justify-center text-[var(--qr-primary)]">
             <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={12} r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg>
           </div>
-          <select value={lang} onChange={handleLanguageChange} className="appearance-none bg-[#f9f3e7] text-[#3a513e] font-medium text-sm pl-9 pr-8 py-2 rounded-full border border-[#cac2a7]/40 focus:outline-none cursor-pointer relative z-0">
+          <select value={lang} onChange={handleLanguageChange} className="appearance-none bg-[var(--qr-soft)] text-[var(--qr-primary)] font-medium text-sm pl-9 pr-8 py-2 rounded-full border border-[var(--qr-border)] focus:outline-none cursor-pointer relative z-0">
             <option value="az">AZ</option>
             <option value="en">EN</option>
             <option value="ru">RU</option>
           </select>
-          <div className="pointer-events-none absolute right-3 z-10 flex items-center justify-center text-[#3a513e]">
+          <div className="pointer-events-none absolute right-3 z-10 flex items-center justify-center text-[var(--qr-primary)]">
             <svg xmlns="http://www.w3.org/2000/svg" width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
           </div>
         </div>
       </div>
 
       {/* Hero Banner */}
-      <div className="container flex flex-row justify-between mx-auto py-2 max-w-137.5 px-2 lg:px-0 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl items-center text-[#3a513e]">
+      <div className="container flex flex-row justify-between mx-auto py-2 max-w-137.5 px-2 lg:px-0 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl items-center text-[var(--qr-primary)]">
         <div style={{ backgroundImage: `url(${heroBackground})` }} className="w-full aspect-video rounded-[25px] bg-cover bg-center relative overflow-hidden p-6 lg:p-8 flex items-end">
-          <div className="bg-white/80 xl:text-[34px] backdrop-blur-md gap-2 px-3 py-2 items-center justify-between rounded-xl text-[#3a513e] flex flex-row">
+          <div className="bg-white/80 xl:text-[34px] backdrop-blur-md gap-2 px-3 py-2 items-center justify-between rounded-xl text-[var(--qr-primary)] flex flex-row">
             <i className="fa-regular fa-clock text-[24px] xl:text-[45px]" />
             <span className="flex flex-col gap-0">
               <span className="font-light">{t.everyday}</span>
@@ -353,8 +357,8 @@ export default function Home() {
                 onClick={() => handleGroupClick(group)}
                 className={`flex items-center cursor-pointer gap-2 px-4 py-2 rounded-full text-sm shrink-0 transition-all ${
                   highlightedGroup === group
-                    ? "bg-[#3a513e] text-white shadow-sm"
-                    : "bg-[#f9f3e7] text-[#3a513e] border border-[#cac2a7]/40 hover:bg-[#f5ebd7]"
+                    ? "bg-[var(--qr-primary)] text-white shadow-sm"
+                    : "bg-[var(--qr-soft)] text-[var(--qr-primary)] border border-[var(--qr-border)] hover:bg-[var(--qr-soft-hover)]"
                 }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -370,7 +374,7 @@ export default function Home() {
       </div>
 
       {/* Başlıq Bölməsi */}
-      <div className="container mx-auto px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[#3a513e] mt-4">
+      <div className="container mx-auto px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[var(--qr-primary)] mt-4">
         <div className="flex flex-row items-center justify-between md:justify-start gap-1">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-serif whitespace-nowrap">
             {t.selectedForYou}
@@ -384,7 +388,7 @@ export default function Home() {
       {/* Məhsullar Siyahısı */}
       <div
         ref={productsRef}
-        className="container mx-auto py-4 px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[#3a513e]"
+        className="container mx-auto py-4 px-2 lg:px-0 max-w-137.5 md:max-w-180 lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl text-[var(--qr-primary)]"
       >
         {error && <div className="bg-white rounded-[25px] p-6 text-sm text-red-600">{error}</div>}
         {!error && displayedProducts.length === 0 && (
@@ -392,6 +396,6 @@ export default function Home() {
         )}
         {productsGrid}
       </div>
-    </>
+    </div>
   );
 }
